@@ -48,6 +48,7 @@ import { buildSpec, runBuild, updateSpec } from "./application/commands/build.ts
 import { exploreSpec, runSearch, searchSpec } from "./application/commands/search.ts";
 import { readSpec, runRead } from "./application/commands/read.ts";
 import { listSpec, runList, runStatus, statusSpec } from "./application/commands/status.ts";
+import { evalSpec, runEval } from "./application/commands/eval.ts";
 
 type CommandHandler = (context: CommandContext) => Promise<CommandResult>;
 
@@ -66,6 +67,7 @@ const COMMANDS: readonly Command[] = [
   { spec: readSpec, run: runRead },
   { spec: statusSpec, run: runStatus },
   { spec: listSpec, run: runList },
+  { spec: evalSpec, run: runEval },
 ];
 
 /**
@@ -184,7 +186,7 @@ function renderTopLevelHelp(): string {
     "Every command accepts --json for machine-readable output, and --help for details.",
     "",
     "Exit codes:",
-    "  0 ok   2 usage   3 not found   4 incompatible corpus   5 partial build   7 no evidence",
+    "  0 ok   2 usage   3 not found   4 incompatible corpus   5 partial build   7 no evidence   8 eval gate failed",
     "",
   ];
   return `${lines.join("\n")}\n`;

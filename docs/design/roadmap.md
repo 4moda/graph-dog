@@ -12,10 +12,12 @@ What exists, what does not, and what was deliberately deferred.
 - Extraction: Markdown, plain text, source code; PDF and DOCX behind optional deps
 - Embedding: built-in lexical hashing; local ONNX semantic models opt-in
 - Reranking: cross-encoder, opt-in, degrades to a warning when unavailable
-- CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`
+- Multi-corpus search: `--corpus` repeated or `--all`, merged by rank across corpora
+- Evaluation harness: judged datasets, IR metrics, baselines and a CI regression gate
+- CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`, `eval`
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
 - Compatibility gate, freshness reporting, auditable exclusions and failures
-- 860+ tests, every source file with a colocated spec
+- 1100+ tests, every source file with a colocated spec
 
 ## Next
 
@@ -36,22 +38,38 @@ the transport around it.
 A corpus is already a single file that can be copied, which covers the common
 case — the archive adds verification and a manifest for distribution.
 
-### Evaluation harness
+### Ranking work the harness has already identified
 
-The handoff named the metrics: Recall@K, MRR, nDCG, evidence-line accuracy,
-indexing throughput, query latency. What is missing is a fixed corpus and query
-set to measure against, and a regression gate in CI.
+The evaluation harness is built, and the first thing it did was find a defect:
+graph expansion was giving every chunk of a reached document the same score, so
+one graph claim became forty tied candidates that RRF ordered by chunk id.
+Fixing it — one representative chunk per document — moved every metric on the
+built-in dataset at once:
 
-This matters more than any individual ranking tweak: without it, "the lexical
-default is good enough" is an assertion rather than a measurement — and it is
-the open question most likely to change the defaults.
+| | before | after |
+|---|---|---|
+| recall@10 | 0.762 | **1.000** |
+| precision@10 | 0.114 | **0.150** |
+| MRR | 0.536 | **0.577** |
+| nDCG@10 | 0.536 | **0.632** |
+| queries that missed entirely | 2 | **0** |
 
-### Multi-corpus search
+What the same dataset still shows, unfixed:
 
-`list_corpora` exists; searching across several at once does not. It needs a
-decision on how to fuse scores across corpora built with different embedding
-models — which, given the compatibility gate, probably means refusing to fuse
-them and returning grouped results instead.
+- **MRR is 0.58 with the lexical default.** The right document is reliably found
+  and reliably not first — including for `read_ref line range`, which names a
+  field verbatim. Exact-term queries should not need four results.
+- **Precision@10 is 0.15.** The corpus has four documents, so this is partly an
+  artifact of dividing by k — but it is also fusion returning a full page of
+  results when two would do.
+- **No semantic measurement.** Every number here is the hashing embedder. The
+  case for making a semantic model the default cannot be made until the same
+  dataset has been run against one, on a corpus large enough for the difference
+  to show.
+
+The dataset is twelve queries over GraphDog's own docs. It is a tripwire, not
+evidence that retrieval is good; a real judgment of the defaults needs a corpus
+somebody actually works in.
 
 ## Later
 

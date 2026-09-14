@@ -26,6 +26,8 @@ export const ExitCode = {
   CONFLICT: 6,
   /** The query ran and nothing cleared the evidence threshold. */
   NO_EVIDENCE: 7,
+  /** An evaluation ran and breached a threshold or regressed against a baseline. */
+  GATE_FAILED: 8,
 } as const;
 
 export type ExitCodeValue = (typeof ExitCode)[keyof typeof ExitCode];

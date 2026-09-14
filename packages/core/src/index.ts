@@ -69,14 +69,80 @@ export type {
   SearchOutcome,
 } from "./application/usecase/search-corpus.ts";
 export { exploreCorpus } from "./application/usecase/explore-corpus.ts";
+export { searchCorpora } from "./application/usecase/search-corpora.ts";
+export type {
+  CorpusTarget,
+  MultiCorpusOutcome,
+  SearchCorporaDependencies,
+} from "./application/usecase/search-corpora.ts";
 export type { ExploreOptions, ExploreOutcome } from "./application/usecase/explore-corpus.ts";
 export { readDocument, parseRefWithRange } from "./application/usecase/read-document.ts";
 export type { ReadOptions, ReadOutcome } from "./application/usecase/read-document.ts";
 export { describeCorpus, corpusFreshness } from "./application/usecase/describe-corpus.ts";
 export type { DescribeOutcome } from "./application/usecase/describe-corpus.ts";
+export { DEFAULT_EVAL_K, evaluateCorpus } from "./application/usecase/evaluate-corpus.ts";
+export type {
+  EvaluateOptions,
+  EvaluatedQuery,
+  EvaluationOutcome,
+  LatencySummary,
+} from "./application/usecase/evaluate-corpus.ts";
+
+// --- evaluation --------------------------------------------------------------
+export {
+  DEFAULT_TOLERANCE,
+  GATED_METRICS,
+  checkGates,
+  compareScores,
+  gateScores,
+  isGatedMetric,
+  parseGateSpec,
+} from "./domain/service/evaluation-gate.ts";
+export type {
+  GateFailure,
+  GateOptions,
+  GateScores,
+  GatedMetric,
+  MetricDelta,
+} from "./domain/service/evaluation-gate.ts";
+export {
+  aggregate,
+  dedupeByRef,
+  evidenceAccuracy,
+  indexJudgments,
+  mean,
+  ndcgAtK,
+  percentile,
+  precisionAtK,
+  recallAtK,
+  reciprocalRank,
+  scoreQuery,
+  spansOverlap,
+} from "./domain/service/metrics.ts";
+export type {
+  AggregateMetrics,
+  EvidenceAccuracy,
+  Judgment,
+  QueryMetrics,
+  RetrievedItem,
+} from "./domain/service/metrics.ts";
+export {
+  DATASET_VERSION,
+  DEFAULT_GRADE,
+  loadEvalDataset,
+  parseEvalDataset,
+} from "./infrastructure/config/eval-dataset.ts";
+export type { EvalDataset, EvalQuery } from "./infrastructure/config/eval-dataset.ts";
+export { baselineScoresFrom, toEvaluationReportDto } from "./application/dto/evaluation-mappers.ts";
 
 // --- composition -------------------------------------------------------------
-export { openCorpus, openResolvedCorpus, assertCompatible } from "./composition/corpus-context.ts";
+export {
+  assertCompatible,
+  discoverCorpusNames,
+  openCorpora,
+  openCorpus,
+  openResolvedCorpus,
+} from "./composition/corpus-context.ts";
 export type { CorpusContext, OpenCorpusOptions } from "./composition/corpus-context.ts";
 
 // --- workspace ---------------------------------------------------------------

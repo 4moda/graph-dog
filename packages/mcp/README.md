@@ -38,6 +38,17 @@ npx graphdog build
 The intended loop: `search` → take a hit's `read_ref` → `read` it → quote with
 a verifiable citation.
 
+`search` and `explore` also take `corpora` (a list) or `all_corpora` (a
+boolean) to search several corpora in one call. Hits come back as one ranked
+list, merged by rank rather than by score, and each carries the `corpus` it came
+from and its `corpus_rank` within that corpus. The response's `corpora` array
+names every corpus considered, including any that could not be opened — a
+skipped corpus never silently disappears from the answer.
+
+There is deliberately no evaluation tool. Measuring retrieval quality is a
+maintainer's job (`graphdog eval` in the CLI), not something an agent should
+trigger in the middle of a task.
+
 ## Read-only by default
 
 `build_corpus` is hidden unless the server is started with `--allow-write`. An

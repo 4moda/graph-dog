@@ -8,6 +8,7 @@
  */
 
 import {
+  envelope,
   ConfigError,
   ExitCode,
   buildCorpus,
@@ -16,7 +17,7 @@ import {
 } from "@graphdog/core";
 
 import type { CommandContext, CommandResult } from "./types.ts";
-import { optionBoolean, optionList, optionString, type CommandSpec } from "../../infrastructure/argv.ts";
+import { optionBoolean, optionList, optionSingleCorpus, type CommandSpec } from "../../infrastructure/argv.ts";
 import { renderBuildReport } from "../../infrastructure/render/human-renderer.ts";
 
 export const buildSpec: CommandSpec = {
@@ -47,9 +48,9 @@ export async function runBuild(context: CommandContext, full: boolean): Promise<
   const onlySources = optionList(context.parsed, "source");
 
   const contextOptions = {
-    ...(optionString(context.parsed, "corpus") === undefined
+    ...(optionSingleCorpus(context.parsed, "build") === undefined
       ? {}
-      : { corpus: optionString(context.parsed, "corpus") as string }),
+      : { corpus: optionSingleCorpus(context.parsed, "build") as string }),
     cwd: context.cwd,
     logger: context.logger,
   };
@@ -81,9 +82,7 @@ export async function runBuild(context: CommandContext, full: boolean): Promise<
     );
 
     const report: BuildReportDto = {
-      schema_version: "1",
-      contract_version: "1.0",
-      kind: "build_report",
+      ...envelope("build_report"),
       corpus: outcome.corpus,
       status: outcome.status,
       documents: outcome.documents,

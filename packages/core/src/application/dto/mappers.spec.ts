@@ -19,6 +19,8 @@ const location = createLocation({ startLine: 10, endLine: 24, startChar: 100, en
 
 function hit(overrides: Partial<HitView> = {}): HitView {
   return {
+    corpus: "demo",
+    corpusRank: 1,
     ref: "docs/design/token.md",
     chunkId: "abc123",
     title: "Access Token",
@@ -109,6 +111,7 @@ describe("application/dto/mappers", () => {
 
     it("emits the documented top-level key order", () => {
       assert.deepEqual(Object.keys(toHitDto(hit())), [
+        "corpus",
         "ref",
         "chunk_id",
         "title",
@@ -121,6 +124,7 @@ describe("application/dto/mappers", () => {
         "source_revision",
         "tags",
         "read_ref",
+        "corpus_rank",
       ]);
     });
 

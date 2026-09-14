@@ -7,6 +7,7 @@
  */
 
 import {
+  envelope,
   describeCorpus,
   listCorpusNames,
   openCorpus,
@@ -21,7 +22,7 @@ import {
 } from "@graphdog/core";
 
 import type { CommandContext, CommandResult } from "./types.ts";
-import { optionString, type CommandSpec } from "../../infrastructure/argv.ts";
+import { optionSingleCorpus, type CommandSpec } from "../../infrastructure/argv.ts";
 import { renderCorpusList, renderStatus } from "../../infrastructure/render/human-renderer.ts";
 
 export const statusSpec: CommandSpec = {
@@ -41,7 +42,7 @@ export const listSpec: CommandSpec = {
 };
 
 export async function runStatus(context: CommandContext): Promise<CommandResult> {
-  const name = optionString(context.parsed, "corpus");
+  const name = optionSingleCorpus(context.parsed, "status");
   const corpus = await openCorpus({
     ...(name === undefined ? {} : { corpus: name }),
     cwd: context.cwd,
@@ -59,9 +60,7 @@ export async function runStatus(context: CommandContext): Promise<CommandResult>
     });
 
     const info: CorpusInfoDto = {
-      schema_version: "1",
-      contract_version: "1.0",
-      kind: "corpus_info",
+      ...envelope("corpus_info"),
       name: outcome.name,
       path: outcome.path,
       scope: outcome.scope,
@@ -133,9 +132,7 @@ export async function runList(context: CommandContext): Promise<CommandResult> {
   }
 
   const list: CorpusListDto = {
-    schema_version: "1",
-    contract_version: "1.0",
-    kind: "corpus_list",
+    ...envelope("corpus_list"),
     corpora,
     warnings: toWarningDtos(warnings),
   };

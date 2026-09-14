@@ -23,7 +23,7 @@ import { expandGraph } from "../../domain/service/graph-expansion.ts";
 import { bestSnippet } from "../../domain/service/snippet.ts";
 import { termFrequencies, tokenize } from "../../domain/service/tokenizer.ts";
 import type { CorpusConfig } from "../config.ts";
-import { WarningCode } from "../dto/contracts.ts";
+import { WarningCode, type CorpusSearchSummaryDto } from "../dto/contracts.ts";
 import type { HitView, Warning } from "../dto/mappers.ts";
 import type { CorpusStore } from "../ports/repositories.ts";
 import type { EmbeddingModel, Reranker } from "../ports/models.ts";
@@ -54,6 +54,8 @@ export interface SearchDependencies {
 export interface SearchOutcome {
   readonly query: string;
   readonly corpus: string;
+  /** One entry per corpus considered. A single search reports one. */
+  readonly corpora: readonly CorpusSearchSummaryDto[];
   readonly freshness: Freshness;
   readonly hits: HitView[];
   readonly suggestedQueries: string[];
@@ -121,7 +123,7 @@ export async function searchCorpus(
         { hops, maxNodes: candidateCount, minScore: 0.01 },
       );
       graphPaths = expansion.paths;
-      graphScores = spreadToChunks(expansion.scores, owner);
+      graphScores = representativeChunks(expansion.scores, owner, dense, lexical);
     } else {
       graphScores = new Map();
     }
@@ -201,6 +203,8 @@ export async function searchCorpus(
     if (chunk === undefined) continue;
     const document = store.documents.get(chunk.ref);
     hits.push({
+      corpus: config.name,
+      corpusRank: hits.length + 1,
       ref: chunk.ref,
       chunkId,
       title: document?.title ?? chunk.ref,
@@ -262,6 +266,16 @@ export async function searchCorpus(
   return {
     query: options.query,
     corpus: config.name,
+    corpora: [
+      {
+        name: config.name,
+        scope: "",
+        embedding_id: embedding.id,
+        hits: hits.length,
+        searched: true,
+        skipped_reason: null,
+      },
+    ],
     freshness,
     hits,
     suggestedQueries: suggestQueries(hits, store, options.query),
@@ -322,18 +336,69 @@ function seedDocuments(
   return seeds;
 }
 
-/** Attribute a document's graph score to each of its chunks. */
-function spreadToChunks(
+/**
+ * Give each graph-reached document's score to exactly one of its chunks.
+ *
+ * The graph's claim is about a *document*: "this file is connected to what you
+ * found". Handing that score to every chunk of the file turns one claim into
+ * forty tied candidates, and RRF then breaks those ties on chunk id -- which
+ * is to say arbitrarily. On a small corpus that is enough to push a chunk with
+ * no textual evidence above one that matched the query exactly, which is the
+ * "graph-augmented search feels arbitrary" failure the seed limit above is
+ * also guarding against. This was caught by the evaluation harness: a query
+ * naming an exact field name was landing at rank 4.
+ *
+ * The representative is the document's best chunk under the direct signals, so
+ * the graph amplifies real evidence where there is any, and its first chunk
+ * otherwise, so a document the query never matched can still be introduced by
+ * its opening.
+ */
+function representativeChunks(
   documentScores: ReadonlyMap<string, number>,
   owner: ReadonlyMap<string, string>,
+  dense: ReadonlyArray<readonly [string, number]> | null,
+  lexical: ReadonlyArray<readonly [string, number]> | null,
 ): Map<string, number> {
   const out = new Map<string, number>();
   if (documentScores.size === 0) return out;
+
+  // Best direct rank per chunk; lower is better, and a chunk no signal ranked
+  // is worse than any that one did.
+  const directRank = new Map<string, number>();
+  const note = (entries: ReadonlyArray<readonly [string, number]> | null): void => {
+    entries?.forEach(([chunkId], index) => {
+      const existing = directRank.get(chunkId);
+      if (existing === undefined || index < existing) directRank.set(chunkId, index);
+    });
+  };
+  note(dense);
+  note(lexical);
+
+  const best = new Map<string, string>();
   for (const [chunkId, ref] of owner) {
+    if (!documentScores.has(ref)) continue;
+    const incumbent = best.get(ref);
+    if (incumbent === undefined || prefers(chunkId, incumbent, directRank)) best.set(ref, chunkId);
+  }
+
+  for (const [ref, chunkId] of best) {
     const score = documentScores.get(ref);
     if (score !== undefined) out.set(chunkId, score);
   }
   return out;
+}
+
+/** Whether `candidate` should represent its document instead of `incumbent`. */
+function prefers(
+  candidate: string,
+  incumbent: string,
+  directRank: ReadonlyMap<string, number>,
+): boolean {
+  const left = directRank.get(candidate) ?? Number.POSITIVE_INFINITY;
+  const right = directRank.get(incumbent) ?? Number.POSITIVE_INFINITY;
+  // Ties fall back to chunk id, which orders by ordinal within a document and
+  // keeps the choice deterministic across runs and machines.
+  return left === right ? compareStrings(candidate, incumbent) < 0 : left < right;
 }
 
 /**

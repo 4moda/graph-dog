@@ -145,6 +145,13 @@ Shipping a weak default that *announces its own weakness* is the better trade:
 carries a warning pointing at the semantic option. A user who needs paraphrase
 recall installs one package and rebuilds.
 
+This is the decision most exposed by the evaluation harness, and deliberately
+so. On GraphDog's own docs the lexical default reaches recall@10 of 1.00 but MRR
+of only 0.58 — the right document is usually found, and usually not first. That
+is a measurement, not a defence. The case for changing the default should be
+made by running the same dataset against a semantic model on a corpus large
+enough for the difference to show.
+
 The lexical embedder is not redundant with BM25, either: its vectors drive the
 similarity edges in the graph, and the two weight terms differently — BM25 by
 corpus-wide rarity, the embedder by within-chunk prominence.
@@ -155,6 +162,21 @@ Cosine similarity and BM25 live on incomparable scales. Weighted-sum fusion
 requires retuning whenever the embedding model changes. Reciprocal Rank Fusion
 uses only ranks, so the two embedders above are interchangeable with no
 retuning. `weighted` remains available.
+
+### Measurement before tuning
+
+Every ranking choice on this page is a judgment, and judgments about retrieval
+are where reasonable people are confidently wrong. So `eval` exists, it ships
+with a dataset, and CI gates on a checked-in baseline.
+
+The first thing it found was a real defect: graph expansion was handing every
+chunk of a reached document the same score, so one graph claim became a block of
+tied candidates that RRF ordered by chunk id. Recall@10 was 0.76, two queries
+missed entirely, and a query naming a field verbatim ranked 4th. One candidate
+per document took recall to 1.00 and nDCG@10 from 0.54 to 0.63.
+
+The rule that follows: a ranking change lands with a before-and-after from the
+harness, not with an argument.
 
 ### Chunking: locations are the product
 
@@ -231,6 +253,9 @@ keeping secrets out of the tree.
 | `McpServer` high-level API | Pulls in a schema library; JSON Schema is the contract |
 | Home-directory-only workspace | A corpus cannot travel with its documents |
 | Truncating stored text | Destroys the evidence the tool exists to provide |
+| Refusing to search corpora with different embeddings | Unhelpful; the rank-based merge makes it defensible, and a warning makes it honest |
+| Scoring a missed document as an evidence-accuracy failure | Conflates a recall failure with a citation failure; they need separate fixes |
+| An `eval` MCP tool | Measuring retrieval is a maintainer's job, not something an agent should trigger mid-task |
 
 ---
 
@@ -245,5 +270,7 @@ keeping secrets out of the tree.
 | Default embedding | Built-in lexical hashing (semantic opt-in) |
 | Fusion | Reciprocal Rank Fusion |
 | Interfaces | CLI (canonical) · MCP · TypeScript API |
+| Cross-corpus merge | Rank-based (RRF), never score-based |
+| Quality gate | `npm run eval` against a checked-in baseline, CI-enforced |
 | Trade-off accepted | Weaker default retrieval, in exchange for a zero-dependency offline install that states its own limits |
 | Re-evaluate if | The lexical default proves inadequate in practice, or corpus sizes outgrow exhaustive vector scan |

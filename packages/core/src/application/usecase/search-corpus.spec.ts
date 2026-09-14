@@ -209,6 +209,68 @@ describe("application/usecase/searchCorpus", () => {
       assert.ok(!result.hits.some((hit) => hit.ref === "docs/token.md"));
       assert.equal(result.strategy["graph"], "off");
     });
+
+    it("contributes one candidate per reached document, not one per chunk", async () => {
+      // The graph's claim is about a document. Spreading it over every chunk
+      // turns one claim into a block of tied candidates that RRF then orders by
+      // chunk id, which is enough to outrank real textual evidence.
+      const store = new InMemoryStore();
+      store.addDocument({ ref: "docs/keys.md", text: "JWKS endpoints publish the public keys." });
+      store.addDocument({
+        ref: "docs/long.md",
+        text: Array.from({ length: 12 }, (_, index) => `Paragraph ${index} about nothing.`).join("\n\n"),
+      });
+      store.graph.replaceAll(
+        [
+          { id: documentNodeId("docs/keys.md"), kind: "document", label: "Keys", ref: "docs/keys.md" },
+          { id: documentNodeId("docs/long.md"), kind: "document", label: "Long", ref: "docs/long.md" },
+        ],
+        [
+          {
+            src: documentNodeId("docs/keys.md"),
+            dst: documentNodeId("docs/long.md"),
+            kind: "links_to",
+            weight: 1,
+          },
+        ],
+      );
+
+      const result = await searchCorpus({ query: "JWKS", topK: 20 }, deps(store));
+      const fromLong = result.hits.filter((hit) => hit.ref === "docs/long.md");
+      assert.equal(fromLong.length, 1, "twelve chunks of one neighbour is one graph claim");
+      assert.ok(
+        (result.stats["graph_candidates"] as number) <= 2,
+        "at most one graph candidate per document, not one per chunk",
+      );
+    });
+
+    it("lets the graph amplify the chunk that already had the best direct evidence", async () => {
+      const store = new InMemoryStore();
+      store.addDocument({ ref: "docs/seed.md", text: "JWKS endpoint." });
+      store.addDocument({
+        ref: "docs/target.md",
+        text: "Nothing to see here.\n\nThe JWKS rotation schedule lives here.",
+      });
+      store.graph.replaceAll(
+        [
+          { id: documentNodeId("docs/seed.md"), kind: "document", label: "Seed", ref: "docs/seed.md" },
+          { id: documentNodeId("docs/target.md"), kind: "document", label: "Target", ref: "docs/target.md" },
+        ],
+        [
+          {
+            src: documentNodeId("docs/seed.md"),
+            dst: documentNodeId("docs/target.md"),
+            kind: "links_to",
+            weight: 1,
+          },
+        ],
+      );
+
+      const result = await searchCorpus({ query: "JWKS rotation", topK: 20 }, deps(store));
+      const target = result.hits.find((hit) => hit.ref === "docs/target.md");
+      assert.ok(target);
+      assert.match(target.snippet, /rotation schedule/, "the matching chunk represents the document");
+    });
   });
 
   describe("reranking", () => {

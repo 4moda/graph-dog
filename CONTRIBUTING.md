@@ -7,6 +7,7 @@ npm install          # installs all three workspaces
 npm test             # runs every spec
 npm run typecheck    # strict TypeScript across the monorepo
 npm run build        # compiles all packages
+npm run eval         # measures retrieval against the built-in dataset
 ```
 
 Node 22.18 or newer. Tests run directly on TypeScript source via Node's native
@@ -99,6 +100,10 @@ discussion, not just a passing test:
 6. **The default install is offline and dependency-light.** New required
    dependencies need a strong justification; optional capabilities go behind
    optional peer dependencies.
+7. **Ranking changes are measured, not argued.** A change to retrieval,
+   chunking, fusion or the graph lands with a before-and-after from `npm run
+   eval`. If it improves the numbers, raise `eval/baseline.json` in the same
+   commit; if it lowers one, say so in the message and explain what it buys.
 
 ## Adding things
 
@@ -116,6 +121,15 @@ Declare an honest `minUsefulSimilarity`.
 **A contract field** — add it to `contracts.ts` and the mapper beside it, update
 `docs/design/contract.md`, and add a spec. Additions are fine; removals and
 semantic changes bump `contract_version`.
+
+**An evaluation query** — add it to `eval/graphdog-docs.json` and re-record
+`eval/baseline.json` in the same commit, since adding a query moves every
+aggregate. Judge whole sections rather than exact passages: chunk boundaries
+move, and the metric should measure retrieval, not the chunker.
+
+**A metric** — the pure function goes in `domain/service/metrics.ts` with worked
+examples in its spec. `null` means *unmeasurable*, never *zero*: a fabricated
+zero moves the headline number for no reason.
 
 ## Commits and pull requests
 
