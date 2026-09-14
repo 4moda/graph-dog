@@ -1,0 +1,27 @@
+{
+  "name": "@graphdog/core",
+  "version": "0.1.0",
+  "description": "GraphDog core: domain model, use cases and adapters for a portable dense + BM25 + graph knowledge index.",
+  "license": "MIT",
+  "author": "4moda",
+  "repository": { "type": "git", "url": "git+https://github.com/4moda/graph-dog.git", "directory": "packages/core" },
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./contracts": { "types": "./dist/application/dto/contracts.d.ts", "default": "./dist/application/dto/contracts.js" }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "peerDependencies": {
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@huggingface/transformers": { "optional": true }
+  }
+}

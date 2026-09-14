@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.graphdog/corpora/*/corpus.sqlite3*
+.graphdog/corpora/*/manifest.json
+*.gdog
+.DS_Store
