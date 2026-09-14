@@ -1,0 +1,19 @@
+{
+  "name": "graphdog-monorepo",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "workspaces": ["packages/core", "packages/cli", "packages/mcp"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "typecheck": "tsc --build tsconfig.json",
+    "test": "node --test --experimental-strip-types \"packages/*/src/**/*.spec.ts\"",
+    "test:coverage": "node --test --experimental-test-coverage \"packages/*/src/**/*.spec.ts\"",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

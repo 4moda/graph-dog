@@ -1,0 +1,24 @@
+{
+  "name": "graphdog",
+  "version": "0.1.0",
+  "description": "Agent-native portable knowledge index: dense + BM25 + graph search over local documents with machine-readable evidence. CLI-first, offline, no LLM required.",
+  "keywords": ["search", "rag", "bm25", "knowledge-graph", "cli", "ai-agent", "retrieval", "offline", "mcp"],
+  "license": "MIT",
+  "author": "4moda",
+  "homepage": "https://github.com/4moda/graph-dog#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/4moda/graph-dog.git", "directory": "packages/cli" },
+  "bugs": { "url": "https://github.com/4moda/graph-dog/issues" },
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "bin": { "graphdog": "dist/main.js", "gdog": "dist/main.js" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/make-executable.mjs dist/main.js",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@graphdog/core": "0.1.0"
+  }
+}
