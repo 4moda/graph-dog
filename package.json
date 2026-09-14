@@ -10,6 +10,7 @@
     "typecheck": "tsc --build tsconfig.json",
     "test": "node --test --experimental-strip-types \"packages/*/src/**/*.spec.ts\"",
     "test:coverage": "node --test --experimental-test-coverage \"packages/*/src/**/*.spec.ts\"",
+    "eval": "npm run build --workspace packages/cli --if-present && node scripts/run-eval.mjs",
     "rebuild": "npm run clean && npm run build"
   },
   "devDependencies": {

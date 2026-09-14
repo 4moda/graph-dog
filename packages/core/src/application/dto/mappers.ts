@@ -33,6 +33,7 @@ export interface Warning {
 
 /** A retrieved chunk, assembled by the query pipeline. */
 export interface HitView {
+  readonly corpus: string;
   readonly ref: string;
   readonly chunkId: string;
   readonly title: string;
@@ -43,6 +44,8 @@ export interface HitView {
   readonly sourceRevision: string | null;
   readonly graphPath: readonly GraphEdge[];
   readonly tags: readonly string[];
+  /** 1-based rank within its own corpus. */
+  readonly corpusRank: number;
 }
 
 export function toLocationDto(location: Location): LocationDto {
@@ -83,6 +86,7 @@ export function toNodeDto(node: GraphNode): GraphNodeDto {
 
 export function toHitDto(hit: HitView): HitDto {
   return {
+    corpus: hit.corpus,
     ref: hit.ref,
     chunk_id: hit.chunkId,
     title: hit.title,
@@ -95,6 +99,7 @@ export function toHitDto(hit: HitView): HitDto {
     source_revision: hit.sourceRevision,
     tags: [...hit.tags],
     read_ref: `${hit.ref}${formatLocation(hit.location)}`,
+    corpus_rank: hit.corpusRank,
   };
 }
 

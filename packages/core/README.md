@@ -105,6 +105,18 @@ See [the contract](https://github.com/4moda/graph-dog/blob/main/docs/design/cont
 Without them the default lexical embedder is used, and files needing a missing
 extractor are reported as build failures rather than silently skipped.
 
+## Evaluation
+
+`evaluateCorpus` runs a judged dataset through `searchCorpus` and scores it with
+the pure metric functions in `domain/service/metrics.ts` — `recallAtK`,
+`precisionAtK`, `reciprocalRank`, `ndcgAtK`, `evidenceAccuracy`, `aggregate`.
+`checkGates` turns the result into a pass or a fail against thresholds and a
+stored baseline.
+
+The metrics take a ranked list and a set of judgments and nothing else, so they
+are usable on their own and testable against worked examples. Throughout them,
+`null` means *unmeasurable* and never *zero*.
+
 ## Layering
 
 `domain` (pure) ← `application` (use cases and ports) ← `infrastructure`

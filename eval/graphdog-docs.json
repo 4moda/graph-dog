@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "name": "graphdog-docs",
+  "corpus": "graphdog",
+  "description": "GraphDog's own design docs, judged by hand. Small on purpose: a regression tripwire, not evidence that retrieval is good. Run it with `npm run eval`. The line ranges point at whole sections, so ordinary edits stay within them; a restructuring of docs/design/ needs them re-checked.",
+  "queries": [
+    {
+      "id": "why-rrf",
+      "query": "why is reciprocal rank fusion used instead of weighted scores",
+      "note": "An explicit design rationale, worded differently from the question.",
+      "relevant": [
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 3,
+          "lines": "159-165"
+        },
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 2,
+          "lines": "144-157"
+        }
+      ]
+    },
+    {
+      "id": "dense-floor",
+      "query": "why does the embedding model declare its own similarity threshold",
+      "note": "Low keyword overlap; this is the query that separates lexical from semantic.",
+      "relevant": [
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 3,
+          "lines": "132-143"
+        }
+      ]
+    },
+    {
+      "id": "embedding-changed",
+      "query": "what happens when the embedding model changes after a corpus was built",
+      "relevant": [
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 3,
+          "lines": "196-208"
+        },
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 2,
+          "lines": "192-200"
+        }
+      ]
+    },
+    {
+      "id": "secrets",
+      "query": "how are secrets kept out of the index",
+      "relevant": [
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 3,
+          "lines": "233-242"
+        }
+      ]
+    },
+    {
+      "id": "determinism",
+      "query": "determinism",
+      "note": "A bare keyword that heads a section in two documents.",
+      "relevant": [
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 3,
+          "lines": "209-221"
+        },
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 2,
+          "lines": "212-222"
+        }
+      ]
+    },
+    {
+      "id": "exit-codes",
+      "query": "exit codes",
+      "relevant": [
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 3,
+          "lines": "381-412"
+        }
+      ]
+    },
+    {
+      "id": "read-ref",
+      "query": "read_ref line range",
+      "note": "An exact field name: BM25 should win this outright.",
+      "relevant": [
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 3,
+          "lines": "95-125"
+        }
+      ]
+    },
+    {
+      "id": "graph-edges",
+      "query": "what kinds of edges does the graph have",
+      "relevant": [
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 3,
+          "lines": "175-195"
+        },
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 2,
+          "lines": "87-101"
+        }
+      ]
+    },
+    {
+      "id": "node-version",
+      "query": "minimum Node version",
+      "relevant": [
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 3,
+          "lines": "55-65"
+        }
+      ]
+    },
+    {
+      "id": "why-typescript",
+      "query": "why TypeScript instead of Python",
+      "relevant": [
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 3,
+          "lines": "18-42"
+        }
+      ]
+    },
+    {
+      "id": "stale-corpus",
+      "query": "how do I know the index is out of date",
+      "note": "Paraphrase: the docs say 'freshness', never 'out of date'.",
+      "relevant": [
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 3,
+          "lines": "155-165"
+        },
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 1,
+          "lines": "220-246"
+        }
+      ]
+    },
+    {
+      "id": "three-packages",
+      "query": "why are cli core and mcp separate packages",
+      "relevant": [
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 3,
+          "lines": "3-18"
+        },
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 2,
+          "lines": "43-54"
+        }
+      ]
+    },
+    {
+      "id": "several-corpora",
+      "query": "searching more than one corpus at the same time",
+      "note": "Added with the feature; the docs never use the word 'more'.",
+      "relevant": [
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 3,
+          "lines": "126-154"
+        }
+      ]
+    },
+    {
+      "id": "measuring-quality",
+      "query": "how is retrieval quality measured",
+      "relevant": [
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 3,
+          "lines": "282-344"
+        },
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 2,
+          "lines": "236-250"
+        },
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 2,
+          "lines": "166-180"
+        }
+      ]
+    }
+  ]
+}

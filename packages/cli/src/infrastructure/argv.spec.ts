@@ -6,6 +6,8 @@ import { UsageError } from "@graphdog/core";
 import {
   GLOBAL_OPTIONS,
   optionBoolean,
+  optionCorpora,
+  optionSingleCorpus,
   optionList,
   optionNumber,
   optionString,
@@ -51,7 +53,7 @@ describe("cli/infrastructure/argv", () => {
     it("accepts the global options on every command", () => {
       const parsed = parseCommandLine(["--json", "--corpus", "docs", "-q"], spec);
       assert.equal(optionBoolean(parsed, "json"), true);
-      assert.equal(optionString(parsed, "corpus"), "docs");
+      assert.deepEqual(optionCorpora(parsed), ["docs"]);
       assert.equal(optionBoolean(parsed, "quiet"), true);
     });
 
@@ -109,6 +111,38 @@ describe("cli/infrastructure/argv", () => {
 
     it("accepts a decimal value", () => {
       assert.equal(optionNumber(parseCommandLine(["--count", "0.5"], spec), "count", "demo"), 0.5);
+    });
+  });
+
+  describe("--corpus", () => {
+    it("collects several corpora", () => {
+      const parsed = parseCommandLine(["--corpus", "a", "--corpus", "b"], spec);
+      assert.deepEqual(optionCorpora(parsed), ["a", "b"]);
+    });
+
+    it("is empty when none was given", () => {
+      assert.deepEqual(optionCorpora(parseCommandLine([], spec)), []);
+    });
+
+    it("returns the single corpus for a command that takes one", () => {
+      assert.equal(optionSingleCorpus(parseCommandLine(["--corpus", "a"], spec), "status"), "a");
+    });
+
+    it("returns undefined when a single-corpus command was given none", () => {
+      assert.equal(optionSingleCorpus(parseCommandLine([], spec), "status"), undefined);
+    });
+
+    it("rejects several corpora for a command that takes one", () => {
+      // Quietly using the first would report on a corpus the caller did not
+      // name, which is exactly the kind of silent wrongness to avoid.
+      assert.throws(
+        () => optionSingleCorpus(parseCommandLine(["--corpus", "a", "--corpus", "b"], spec), "status"),
+        (error: unknown) => {
+          assert.ok(error instanceof UsageError);
+          assert.match(String(error.details["hint"]), /search/);
+          return true;
+        },
+      );
     });
   });
 

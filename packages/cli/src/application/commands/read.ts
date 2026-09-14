@@ -7,6 +7,7 @@
  */
 
 import {
+  envelope,
   UsageError,
   openCorpus,
   readDocument,
@@ -16,7 +17,7 @@ import {
 } from "@graphdog/core";
 
 import type { CommandContext, CommandResult } from "./types.ts";
-import { optionNumber, optionString, type CommandSpec } from "../../infrastructure/argv.ts";
+import { optionNumber, optionSingleCorpus, optionString, type CommandSpec } from "../../infrastructure/argv.ts";
 import { renderRead } from "../../infrastructure/render/human-renderer.ts";
 
 export const readSpec: CommandSpec = {
@@ -43,7 +44,7 @@ export async function runRead(context: CommandContext): Promise<CommandResult> {
   }
 
   const range = parseLineRange(optionString(context.parsed, "lines"));
-  const name = optionString(context.parsed, "corpus");
+  const name = optionSingleCorpus(context.parsed, "read");
   const corpus = await openCorpus({
     ...(name === undefined ? {} : { corpus: name }),
     cwd: context.cwd,
@@ -64,9 +65,7 @@ export async function runRead(context: CommandContext): Promise<CommandResult> {
     );
 
     const response: ReadResponseDto = {
-      schema_version: "1",
-      contract_version: "1.0",
-      kind: "read",
+      ...envelope("read"),
       corpus: outcome.corpus,
       ref: outcome.ref,
       title: outcome.title,

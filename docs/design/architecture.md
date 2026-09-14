@@ -148,6 +148,30 @@ values means the built-in lexical embedder and a sentence-transformers model are
 interchangeable with no weight retuning. `weighted` remains available for anyone
 who wants to tune for their own corpus.
 
+The same argument, one level up, is why a cross-corpus search merges by rank
+too: each corpus normalizes its own best hit to `1.0`, so a weak corpus's best
+and a strong corpus's best are both `1.0`. Interleaving those numbers would
+promote whichever corpus had least to offer. Ranks do not carry that distortion,
+so merging is a second RRF pass, and only `final` is rewritten — per-signal
+scores keep the calibration of the corpus that produced them.
+
+### Why the graph contributes one chunk per document
+
+A graph edge is a claim about a *document*: "this file is connected to what you
+found". Handing that score to every chunk of the file turns one claim into forty
+tied candidates, which RRF then orders by chunk id — arbitrarily. On a small
+corpus that is enough to push a chunk with no textual evidence above one that
+matched the query exactly.
+
+So a reached document contributes exactly one candidate: its best chunk under
+the direct signals where it has one, its first chunk otherwise. The graph
+therefore amplifies real evidence where there is any, and can still introduce a
+document the query never matched, without flooding the candidate pool.
+
+This was not reasoned out in advance. The evaluation harness found it: a query
+naming a field verbatim was landing at rank 4. Fixing the spread took recall@10
+on the built-in dataset from 0.76 to 1.00 and nDCG@10 from 0.54 to 0.63.
+
 ## The graph
 
 Every edge kind must be explainable in one phrase, because a hit reached through
@@ -208,6 +232,21 @@ The layering is what makes this tractable:
   repository
 - **cross-cutting** — CLI and MCP asserted byte-identical, with the CLI actually
   run as a subprocess
+
+### Measurement, separately
+
+Unit tests say the code does what it was written to do. They cannot say whether
+search is any good, because the answer is a judgment about documents.
+
+`graphdog eval` closes that gap: a hand-judged dataset, the real `searchCorpus`
+(not a reimplementation of it), and Recall@K, Precision@K, MRR, nDCG@K,
+evidence-line accuracy and latency percentiles. `npm run eval` runs GraphDog's
+own dataset against GraphDog's own docs, and CI fails the build if any metric
+falls below the checked-in baseline.
+
+The metrics themselves are pure domain functions over a ranked list and a set of
+judgments, so they are tested against worked examples with known answers rather
+than against whatever the search happens to return today.
 
 ## Constraints worth knowing
 

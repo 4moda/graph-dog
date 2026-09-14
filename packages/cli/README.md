@@ -32,8 +32,13 @@ returns those exact lines.
 | `read <ref>` | Print the exact source text |
 | `status` | Is this corpus current and usable? |
 | `list` | Every corpus visible from here |
+| `eval <dataset.json>` | Measure retrieval quality against hand-judged queries |
 
 Every command takes `--json` for the machine-readable contract, and `--help`.
+
+`search` and `explore` take `--corpus` more than once, or `--all`, to search
+several corpora at once; results are merged by rank and each hit says which
+corpus it came from.
 
 ## Exit codes
 
@@ -45,6 +50,7 @@ Every command takes `--json` for the machine-readable contract, and `--help`.
 | 4 | Incompatible corpus — rebuild required |
 | 5 | Build completed, some files failed |
 | 7 | Query ran, nothing cleared the evidence threshold |
+| 8 | Evaluation ran and breached a threshold or its baseline |
 
 ```bash
 if ! graphdog search "$q" --json > result.json; then
@@ -54,6 +60,22 @@ if ! graphdog search "$q" --json > result.json; then
   esac
 fi
 ```
+
+## Measuring retrieval
+
+```console
+graphdog eval eval/docs.json --fail-under recall=0.8 --fail-under mrr=0.6
+graphdog eval eval/docs.json --baseline eval/baseline.json --out eval/latest.json
+```
+
+A dataset is plain JSON — queries, the refs that answer them, optionally a grade
+and the exact lines. `eval` runs them through the real search pipeline (not a
+copy of it) and reports Recall@K, Precision@K, MRR, nDCG@K, evidence-line
+accuracy and latency percentiles.
+
+`--fail-under` sets a floor and `--baseline` compares against a stored report;
+either exits **8** when breached, so a change that quietly makes search worse
+fails a build instead of being noticed a month later.
 
 ## Japanese and multilingual
 

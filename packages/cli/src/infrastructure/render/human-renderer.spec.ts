@@ -5,6 +5,7 @@ import type {
   BuildReportDto,
   CorpusInfoDto,
   CorpusListDto,
+  EvaluationReportDto,
   ExploreResponseDto,
   HitDto,
   ReadResponseDto,
@@ -16,6 +17,7 @@ import {
   renderBuildReport,
   renderCorpusList,
   renderError,
+  renderEvaluation,
   renderExplore,
   renderRead,
   renderSearch,
@@ -31,6 +33,8 @@ const ENVELOPE = { schema_version: "1", contract_version: "1.0" } as const;
 
 function hit(overrides: Partial<HitDto> = {}): HitDto {
   return {
+    corpus: "demo",
+    corpus_rank: 1,
     ref: "docs/design/token.md",
     chunk_id: "abc123",
     title: "Access Token",
@@ -53,6 +57,10 @@ function search(overrides: Partial<SearchResponseDto> = {}): SearchResponseDto {
     kind: "search",
     query: "JWT",
     corpus: "demo",
+    corpora: [
+      { name: "demo", scope: "project", embedding_id: "hash-v1:d256", hits: 1,
+        searched: true, skipped_reason: null },
+    ],
     freshness: { status: "current", built_at: "2026-09-14T00:00:00.000Z", source_revisions: {}, reason: null },
     hits: [hit()],
     suggested_queries: ["ES256"],
@@ -415,5 +423,252 @@ describe("cli/infrastructure/render/humanRenderer", () => {
     it("lists available options when the error carries them", () => {
       assert.match(renderError("x", "y", { available: ["a", "b"] }, plain), /available: a, b/);
     });
+  });
+});
+
+describe("cli/infrastructure/render/humanRenderer: several corpora", () => {
+  function multi(): SearchResponseDto {
+    return {
+      ...search(),
+      corpus: "auth, ops",
+      corpora: [
+        { name: "auth", scope: "project", embedding_id: "hash-v1:d256", hits: 1, searched: true, skipped_reason: null },
+        { name: "ops", scope: "home", embedding_id: "hash-v1:d256", hits: 1, searched: true, skipped_reason: null },
+      ],
+      hits: [
+        hit({ corpus: "auth", corpus_rank: 1, title: "Access Token" }),
+        hit({ corpus: "ops", corpus_rank: 1, title: "Runbook", ref: "ops/runbook.md", read_ref: "ops/runbook.md#L1-L5" }),
+      ],
+    };
+  }
+
+  it("labels each hit with its corpus", () => {
+    const output = renderSearch(multi(), plain);
+    assert.match(output, /\[auth\]/);
+    assert.match(output, /\[ops\]/);
+  });
+
+  it("shows each hit's rank within its own corpus", () => {
+    // "second overall but best in its corpus" is the distinction that matters
+    // when reading a merged list.
+    assert.match(renderSearch(multi(), plain), /#1 in ops/);
+  });
+
+  it("does not label hits when only one corpus was searched", () => {
+    const output = renderSearch(search(), plain);
+    assert.doesNotMatch(output, /\[demo\]/, "the label would be identical on every line");
+  });
+
+  it("names corpora that were skipped, so a smaller answer is visible", () => {
+    const response = multi();
+    const withSkip: SearchResponseDto = {
+      ...response,
+      corpora: [
+        ...response.corpora,
+        { name: "archive", scope: "home", embedding_id: null, hits: 0, searched: false, skipped_reason: "not built" },
+      ],
+    };
+    assert.match(renderSearch(withSkip, plain), /Not searched: archive/);
+  });
+});
+
+// --- evaluation --------------------------------------------------------------
+
+function evaluation(overrides: Partial<EvaluationReportDto> = {}): EvaluationReportDto {
+  return {
+    ...ENVELOPE,
+    kind: "evaluation_report",
+    dataset: "auth",
+    corpus: "demo",
+    embedding_id: "hashing:v1:d256",
+    k: 10,
+    strategy: { fusion: "rrf" },
+    summary: {
+      queries: 4,
+      measured: 4,
+      recall_at_k: 0.75,
+      precision_at_k: 0.1,
+      mrr: 0.625,
+      ndcg_at_k: 0.6,
+      evidence_accuracy: 1,
+      evidence_checked: 2,
+      zero_result_queries: 0,
+      missed_queries: 1,
+      failed_queries: 0,
+      latency: { mean_ms: 4.2, p50_ms: 4, p95_ms: 9, max_ms: 9 },
+    },
+    queries: [
+      {
+        id: "jwks",
+        query: "JWKS",
+        note: null,
+        metrics: {
+          recall_at_k: 1,
+          precision_at_k: 0.1,
+          reciprocal_rank: 1,
+          ndcg_at_k: 1,
+          evidence_checked: 1,
+          evidence_correct: 1,
+          evidence_accuracy: 1,
+          retrieved: 2,
+          relevant: 1,
+        },
+        elapsed_ms: 4,
+        retrieved_refs: ["docs/keys.md"],
+        missing_refs: [],
+        error: null,
+      },
+      {
+        id: "lunch",
+        query: "cafeteria",
+        note: null,
+        metrics: {
+          recall_at_k: 0,
+          precision_at_k: 0,
+          reciprocal_rank: 0,
+          ndcg_at_k: 0,
+          evidence_checked: 0,
+          evidence_correct: 0,
+          evidence_accuracy: null,
+          retrieved: 1,
+          relevant: 1,
+        },
+        elapsed_ms: 9,
+        retrieved_refs: ["docs/token.md"],
+        missing_refs: ["docs/menu.md"],
+        error: null,
+      },
+    ],
+    comparison: null,
+    status: "ok",
+    gate_failures: [],
+    warnings: [],
+    ...overrides,
+  };
+}
+
+describe("cli/infrastructure/render/humanRenderer: renderEvaluation", () => {
+  it("names the dataset, the corpus and the embedding that produced the numbers", () => {
+    const output = renderEvaluation(evaluation(), plain);
+    assert.match(output, /auth/);
+    assert.match(output, /demo/);
+    assert.match(output, /hashing:v1:d256/);
+  });
+
+  it("labels the @K metrics with the cutoff they were computed at", () => {
+    const output = renderEvaluation(evaluation(), plain);
+    assert.match(output, /recall@10\s+0\.750/);
+    assert.match(output, /ndcg@10\s+0\.600/);
+  });
+
+  it("prints an unmeasurable metric as -- rather than as zero", () => {
+    const report = evaluation();
+    const output = renderEvaluation(
+      { ...report, summary: { ...report.summary, recall_at_k: null } },
+      plain,
+    );
+    assert.match(output, /recall@10\s+--/);
+  });
+
+  it("says when no spans were judged instead of printing an evidence score", () => {
+    const report = evaluation();
+    const output = renderEvaluation(
+      { ...report, summary: { ...report.summary, evidence_checked: 0, evidence_accuracy: null } },
+      plain,
+    );
+    assert.match(output, /no spans judged/);
+  });
+
+  it("reports latency percentiles", () => {
+    assert.match(renderEvaluation(evaluation(), plain), /p50 4ms\s+p95 9ms/);
+  });
+
+  it("lists the weakest queries, which is where a regression is diagnosed", () => {
+    const output = renderEvaluation(evaluation(), plain);
+    assert.match(output, /weakest queries/);
+    assert.match(output, /lunch\s+not found/);
+    assert.match(output, /missing: docs\/menu\.md/);
+  });
+
+  it("does not list a query the search answered perfectly", () => {
+    const output = renderEvaluation(evaluation(), plain);
+    const weakest = output.slice(output.indexOf("weakest queries"));
+    assert.doesNotMatch(weakest, /jwks/);
+  });
+
+  it("omits the weakest-query section when every query was answered first", () => {
+    const report = evaluation();
+    const output = renderEvaluation(
+      { ...report, queries: [report.queries[0] as EvaluationReportDto["queries"][number]] },
+      plain,
+    );
+    assert.doesNotMatch(output, /weakest queries/);
+  });
+
+  it("shows a query that errored, distinct from one that simply missed", () => {
+    const report = evaluation();
+    const failed = { ...(report.queries[1] as EvaluationReportDto["queries"][number]), error: "index corrupted" };
+    const output = renderEvaluation({ ...report, queries: [failed] }, plain);
+    assert.match(output, /error: index corrupted/);
+  });
+
+  it("shows the rank of a query that found its answer late", () => {
+    const report = evaluation();
+    const late = {
+      ...(report.queries[1] as EvaluationReportDto["queries"][number]),
+      metrics: { ...(report.queries[1] as EvaluationReportDto["queries"][number]).metrics, reciprocal_rank: 0.25 },
+    };
+    assert.match(renderEvaluation({ ...report, queries: [late] }, plain), /rank 4/);
+  });
+
+  it("shows a delta beside each metric when a baseline was compared", () => {
+    const output = renderEvaluation(
+      evaluation({
+        comparison: [
+          { metric: "recall", baseline: 0.5, current: 0.75, delta: 0.25 },
+          { metric: "mrr", baseline: 0.7, current: 0.625, delta: -0.075 },
+        ],
+      }),
+      plain,
+    );
+    assert.match(output, /recall@10\s+0\.750\s+\+0\.250/);
+    assert.match(output, /mrr\s+0\.625\s+-0\.075/);
+  });
+
+  it("confirms explicitly when a baseline comparison found no regression", () => {
+    const output = renderEvaluation(evaluation({ comparison: [] }), plain);
+    assert.match(output, /no regression against the baseline/);
+  });
+
+  it("stays silent about regressions when no baseline was given", () => {
+    assert.doesNotMatch(renderEvaluation(evaluation(), plain), /baseline/);
+  });
+
+  it("spells out every breached gate", () => {
+    const output = renderEvaluation(
+      evaluation({
+        status: "failed",
+        gate_failures: [
+          {
+            kind: "threshold",
+            metric: "recall",
+            observed: 0.75,
+            required: 0.9,
+            message: "recall 0.750 is below the required 0.900",
+          },
+        ],
+      }),
+      plain,
+    );
+    assert.match(output, /gate failed/);
+    assert.match(output, /recall 0\.750 is below the required 0\.900/);
+  });
+
+  it("carries warnings through", () => {
+    const output = renderEvaluation(
+      evaluation({ warnings: [{ code: "eval_unknown_ref", message: "2 judged ref(s) are not in this corpus", details: {} }] }),
+      plain,
+    );
+    assert.match(output, /not in this corpus/);
   });
 });

@@ -43,7 +43,8 @@ export const GLOBAL_OPTIONS: Record<string, OptionSpec> = {
   corpus: {
     type: "string",
     short: "c",
-    description: "Corpus to operate on (required when several exist)",
+    multiple: true,
+    description: "Corpus to operate on; repeatable where several are supported",
     placeholder: "<name>",
   },
   json: {
@@ -138,6 +139,31 @@ export function optionNumber(
     throw new UsageError(`${command}: --${name} must be a number, got ${JSON.stringify(raw)}`);
   }
   return value;
+}
+
+/** Every `--corpus` given, in order. */
+export function optionCorpora(parsed: ParsedCommand): string[] {
+  return optionList(parsed, "corpus");
+}
+
+/**
+ * The single `--corpus` for a command that operates on one.
+ *
+ * Several is a usage error rather than "use the first": silently ignoring the
+ * rest would report on a corpus the caller did not mean.
+ */
+export function optionSingleCorpus(
+  parsed: ParsedCommand,
+  command: string,
+): string | undefined {
+  const names = optionCorpora(parsed);
+  if (names.length > 1) {
+    throw new UsageError(`${command}: --corpus may only be given once here`, {
+      received: names,
+      hint: "only 'search' and 'explore' accept several corpora",
+    });
+  }
+  return names[0];
 }
 
 /** Render `--help` for one command. */

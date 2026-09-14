@@ -29,6 +29,23 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  eval:
+    # Retrieval quality is measured, not asserted. This runs GraphDog's own
+    # dataset against its own docs and fails if any metric fell below the
+    # checked-in baseline -- so a change that quietly makes search worse fails
+    # here rather than being noticed a month later.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.18"
+          cache: npm
+
+      - run: npm ci
+      - name: Measure retrieval quality against the baseline
+        run: npm run eval -- --baseline eval/baseline.json
+
   smoke:
     # Proves the published entry points actually work, not just the sources.
     runs-on: ubuntu-latest
@@ -77,3 +94,12 @@ jobs:
           code=$?
           set -e
           test "$code" -eq 7 || { echo "expected exit 7, got $code"; exit 1; }
+
+      - name: A breached evaluation gate exits 8
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          set +e
+          npm run eval --silent -- --fail-under precision=0.99 >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 8 || { echo "expected exit 8, got $code"; exit 1; }

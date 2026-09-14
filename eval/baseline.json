@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "The scores GraphDog's own docs currently achieve, used by CI as a regression gate:",
+    "`npm run eval -- --baseline eval/baseline.json` fails if any of these falls by more",
+    "than the tolerance (0.01 by default).",
+    "",
+    "Trimmed to the five gated metrics on purpose. A full report from `--out` is also",
+    "accepted here, but it carries per-query latency, which differs on every machine and",
+    "would make this file churn on every run.",
+    "",
+    "Raise these numbers when a change improves retrieval; lowering one is a decision that",
+    "belongs in a review, which is the whole point of checking the file in.",
+    "",
+    "evidence_accuracy is conditional on retrieval: it only scores spans of documents that",
+    "were actually found, so it can fall when recall rises and more spans come under test.",
+    "Read it next to evidence_checked, never alone."
+  ],
+  "summary": {
+    "recall_at_k": 1,
+    "precision_at_k": 0.15,
+    "mrr": 0.577381,
+    "ndcg_at_k": 0.632205,
+    "evidence_accuracy": 0.714286,
+    "evidence_checked": 21
+  }
+}

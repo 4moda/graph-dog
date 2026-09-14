@@ -32,6 +32,22 @@ const corpusProperty = {
   },
 } as const;
 
+/** Search and explore additionally accept several corpora at once. */
+const multiCorpusProperties = {
+  ...corpusProperty,
+  corpora: {
+    type: "array",
+    items: { type: "string" },
+    description:
+      "Search these corpora together. Results are merged by rank; each hit reports which " +
+      "corpus it came from. Overrides `corpus` when both are given.",
+  },
+  all_corpora: {
+    type: "boolean",
+    description: "Search every corpus visible to the server. Overrides `corpus` and `corpora`.",
+  },
+} as const;
+
 export const SEARCH_TOOL: ToolDefinition = {
   name: "search",
   title: "Search the knowledge corpus",
@@ -40,13 +56,15 @@ export const SEARCH_TOOL: ToolDefinition = {
     "with a source ref, an exact line range, a snippet, and a per-signal score breakdown " +
     "(dense vector, BM25 keyword, graph proximity). Pass a hit's read_ref to the read tool " +
     "to get the verbatim text. Returns no hits, with an explanatory warning, when nothing " +
-    "clears the relevance threshold -- treat that as 'not in the corpus', not as an error.",
+    "clears the relevance threshold -- treat that as 'not in the corpus', not as an error. " +
+    "Can search several corpora at once via `corpora` or `all_corpora`, in which case hits " +
+    "are merged by rank and each reports its source corpus.",
   permission: "read",
   readOnly: true,
   inputSchema: {
     type: "object",
     properties: {
-      ...corpusProperty,
+      ...multiCorpusProperties,
       query: { type: "string", description: "What to look for, in natural language or keywords." },
       top_k: { type: "integer", description: "Maximum hits to return. Default 10.", minimum: 1, maximum: 50 },
       min_score: {
@@ -85,7 +103,7 @@ export const EXPLORE_TOOL: ToolDefinition = {
   inputSchema: {
     type: "object",
     properties: {
-      ...corpusProperty,
+      ...multiCorpusProperties,
       query: { type: "string", description: "What to look for." },
       top_k: { type: "integer", description: "Maximum hits to return. Default 10.", minimum: 1, maximum: 50 },
       hops: {

@@ -14,6 +14,8 @@ import type {
   BuildReportDto,
   CorpusInfoDto,
   CorpusListDto,
+  EvaluationDeltaDto,
+  EvaluationReportDto,
   ExploreResponseDto,
   HitDto,
   ReadResponseDto,
@@ -71,6 +73,11 @@ export function renderSearch(
     return `${lines.join("\n")}\n`;
   }
 
+  // Only label hits by corpus when more than one was searched: on a
+  // single-corpus project the label is the same on every line and adds nothing.
+  const searched = response.corpora.filter((entry) => entry.searched).length;
+  const showCorpus = searched > 1;
+
   lines.push(
     paint(options, "bold", `${response.hits.length} result(s)`) +
       paint(options, "dim", ` for "${response.query}" in ${response.corpus}`),
@@ -78,9 +85,20 @@ export function renderSearch(
   lines.push("");
 
   response.hits.forEach((hit, index) => {
-    lines.push(...renderHit(hit, index + 1, options));
+    lines.push(...renderHit(hit, index + 1, options, showCorpus));
     lines.push("");
   });
+
+  const skipped = response.corpora.filter((entry) => !entry.searched);
+  if (skipped.length > 0) {
+    lines.push(
+      paint(
+        options,
+        "yellow",
+        `Not searched: ${skipped.map((entry) => entry.name).join(", ")}`,
+      ),
+    );
+  }
 
   if (response.suggested_queries.length > 0) {
     lines.push(
@@ -92,13 +110,22 @@ export function renderSearch(
   return `${lines.join("\n")}\n`;
 }
 
-function renderHit(hit: HitDto, position: number, options: RenderOptions): string[] {
+function renderHit(
+  hit: HitDto,
+  position: number,
+  options: RenderOptions,
+  showCorpus = false,
+): string[] {
   const score = hit.scores.final.toFixed(3);
   const heading = hit.heading_path === "" ? "" : paint(options, "dim", ` > ${hit.heading_path}`);
+  const corpus = showCorpus ? paint(options, "blue", `[${hit.corpus}] `) : "";
+  // Rank within its own corpus, which is what the cross-corpus score was fused
+  // from -- shown so "second overall" and "best in its corpus" stay legible.
+  const rank = showCorpus ? paint(options, "dim", ` #${hit.corpus_rank} in ${hit.corpus}`) : "";
 
   const lines = [
-    `${paint(options, "bold", `${position}. ${hit.title}`)}${heading}`,
-    `   ${paint(options, "cyan", hit.read_ref)}  ${paint(options, "dim", `score ${score} via ${hit.found_by}`)}`,
+    `${paint(options, "bold", `${position}. ${corpus}${hit.title}`)}${heading}`,
+    `   ${paint(options, "cyan", hit.read_ref)}  ${paint(options, "dim", `score ${score} via ${hit.found_by}`)}${rank}`,
   ];
 
   if (hit.snippet !== "") {
@@ -132,13 +159,25 @@ function shortNode(nodeId: string): string {
 
 function renderStrategy(response: SearchBody): string {
   const strategy = response.strategy;
-  const parts = [
-    `fusion=${String(strategy["fusion"] ?? "?")}`,
-    `dense=${String(strategy["dense"] ?? "off")}`,
-    `lexical=${String(strategy["lexical"] ?? "off")}`,
-    `graph=${String(strategy["graph"] ?? "off")}`,
-  ];
-  if (strategy["rerank"] !== "off") parts.push(`rerank=${String(strategy["rerank"])}`);
+  const fusion = String(strategy["fusion"] ?? "?");
+  const parts = [`fusion=${fusion}`];
+
+  if (strategy["per_corpus"] === undefined) {
+    // Single corpus: report the signals directly.
+    parts.push(
+      `dense=${String(strategy["dense"] ?? "off")}`,
+      `lexical=${String(strategy["lexical"] ?? "off")}`,
+      `graph=${String(strategy["graph"] ?? "off")}`,
+    );
+    if (strategy["rerank"] !== undefined && strategy["rerank"] !== "off") {
+      parts.push(`rerank=${String(strategy["rerank"])}`);
+    }
+  } else {
+    // Several corpora: the per-corpus strategies are in the JSON, and
+    // summarizing them into one line would misrepresent them.
+    parts.push(`corpora=${String(strategy["corpora"] ?? 0)}`);
+  }
+
   const elapsed = response.stats["elapsed_ms"];
   if (typeof elapsed === "number") parts.push(`${elapsed}ms`);
   return parts.join("  ");
@@ -308,6 +347,118 @@ export function renderBuildReport(
 
   lines.push(...renderWarnings(report.warnings, options));
   return `${lines.join("\n")}\n`;
+}
+
+/**
+ * An evaluation report, as a table a person can scan.
+ *
+ * Headline numbers first, then the deltas if a baseline was given, then the
+ * queries that did worst. The worst queries are the useful part: an aggregate
+ * that dropped two points tells you something changed, and the per-query list
+ * tells you where to look.
+ */
+export function renderEvaluation(
+  report: EvaluationReportDto,
+  options: RenderOptions = defaultRenderOptions(),
+): string {
+  const { summary } = report;
+  const statusColor = report.status === "ok" ? "green" : "red";
+
+  const lines: string[] = [
+    `${paint(options, "bold", report.dataset)} on ${paint(options, "cyan", report.corpus)} ` +
+      paint(options, "dim", `(${summary.queries} queries, k=${report.k}, ${report.embedding_id})`),
+    "",
+  ];
+
+  const rows: Array<[string, string]> = [
+    [`recall@${report.k}`, ratio(summary.recall_at_k)],
+    [`precision@${report.k}`, ratio(summary.precision_at_k)],
+    ["mrr", ratio(summary.mrr)],
+    [`ndcg@${report.k}`, ratio(summary.ndcg_at_k)],
+    [
+      "evidence",
+      summary.evidence_checked === 0
+        ? paint(options, "dim", "n/a (no spans judged)")
+        : `${ratio(summary.evidence_accuracy)} ${paint(options, "dim", `(${summary.evidence_checked} span(s) checked)`)}`,
+    ],
+  ];
+  const deltas = new Map((report.comparison ?? []).map((entry) => [entry.metric, entry]));
+  const keys = ["recall", "precision", "mrr", "ndcg", "evidence"];
+  rows.forEach(([label, value], index) => {
+    const delta = deltas.get(keys[index] ?? "");
+    lines.push(`  ${label.padEnd(14)}${value.padEnd(10)}${renderDelta(delta, options)}`);
+  });
+
+  lines.push(
+    "",
+    paint(
+      options,
+      "dim",
+      `  ${summary.measured}/${summary.queries} measurable, ${summary.missed_queries} missed, ` +
+        `${summary.zero_result_queries} returned nothing` +
+        (summary.failed_queries > 0 ? `, ${summary.failed_queries} errored` : ""),
+    ),
+    paint(
+      options,
+      "dim",
+      `  latency  p50 ${millis(summary.latency.p50_ms)}  p95 ${millis(summary.latency.p95_ms)}  max ${millis(summary.latency.max_ms)}`,
+    ),
+  );
+
+  const worst = [...report.queries]
+    .filter((query) => query.error !== null || (query.metrics.reciprocal_rank ?? 1) < 1)
+    .sort((left, right) => rankOf(left) - rankOf(right))
+    .slice(0, 5);
+
+  if (worst.length > 0) {
+    lines.push("", paint(options, "yellow", "  weakest queries:"));
+    for (const query of worst) {
+      const detail =
+        query.error !== null
+          ? paint(options, "red", `error: ${query.error}`)
+          : query.metrics.reciprocal_rank === 0
+            ? paint(options, "red", "not found")
+            : paint(options, "dim", `rank ${Math.round(1 / (query.metrics.reciprocal_rank ?? 1))}`);
+      lines.push(`    ${query.id.padEnd(20)}${detail}`);
+      if (query.missing_refs.length > 0) {
+        lines.push(paint(options, "dim", `      missing: ${query.missing_refs.slice(0, 3).join(", ")}`));
+      }
+    }
+  }
+
+  if (report.gate_failures.length > 0) {
+    lines.push("", paint(options, statusColor, "  gate failed:"));
+    for (const failure of report.gate_failures) {
+      lines.push(paint(options, "red", `    ${failure.message}`));
+    }
+  } else if (report.comparison !== null) {
+    lines.push("", paint(options, "green", "  no regression against the baseline"));
+  }
+
+  lines.push(...renderWarnings(report.warnings, options));
+  return `${lines.join("\n")}\n`;
+}
+
+/** `0.812`, or `--` when the dataset could not measure it. */
+function ratio(value: number | null): string {
+  return value === null ? "--" : value.toFixed(3);
+}
+
+function millis(value: number | null): string {
+  return value === null ? "--" : `${value.toFixed(0)}ms`;
+}
+
+function renderDelta(delta: EvaluationDeltaDto | undefined, options: RenderOptions): string {
+  if (delta === undefined || delta.delta === null) return "";
+  if (delta.delta === 0) return paint(options, "dim", "  =");
+  const sign = delta.delta > 0 ? "+" : "";
+  return paint(options, delta.delta > 0 ? "green" : "red", `  ${sign}${delta.delta.toFixed(3)}`);
+}
+
+/** Sort key for "worst first": a miss sorts before a low rank. */
+function rankOf(query: EvaluationReportDto["queries"][number]): number {
+  if (query.error !== null) return -1;
+  return query.metrics.reciprocal_rank ?? 1;
 }
 
 export function renderWarnings(

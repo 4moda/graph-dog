@@ -10,7 +10,8 @@
 
 import { readFile } from "node:fs/promises";
 
-import { IncompatibleCorpusError } from "../domain/errors.ts";
+import { IncompatibleCorpusError, toGraphDogError } from "../domain/errors.ts";
+import { compareStrings } from "../domain/ordering.ts";
 import { checkIdentity, SCHEMA_VERSION } from "../domain/model/corpus-identity.ts";
 import { chunkingFingerprint } from "../domain/service/chunker.ts";
 import type { CorpusConfig } from "../application/config.ts";
@@ -30,9 +31,11 @@ import { SqliteCorpusStore } from "../infrastructure/persistence/sqlite/sqlite-c
 import { buildSourceReader } from "../infrastructure/source/source-reader-factory.ts";
 import { sha256Hasher, systemClock } from "../infrastructure/system-adapters.ts";
 import {
+  listCorpusNames,
   readCorpusConfig,
   resolveCorpus,
   resolveSourceUri,
+  visibleWorkspaces,
   type ResolvedCorpus,
 } from "../infrastructure/config/workspace.ts";
 
@@ -205,4 +208,51 @@ export function assertCompatible(
       remedy: "graphdog build --full",
     });
   }
+}
+
+/**
+ * Open several corpora for a cross-corpus search.
+ *
+ * A corpus that cannot be opened or is incompatible is *returned* as
+ * unavailable rather than thrown: one broken corpus must not stop a search
+ * across five, and the caller reports the gap instead of silently returning a
+ * smaller answer that looks complete.
+ */
+export async function openCorpora(
+  names: readonly string[],
+  options: Omit<OpenCorpusOptions, "corpus"> = {},
+): Promise<Array<{ name: string; scope: string; context: CorpusContext | null; unavailable: string | null }>> {
+  const opened: Array<{
+    name: string;
+    scope: string;
+    context: CorpusContext | null;
+    unavailable: string | null;
+  }> = [];
+
+  for (const name of names) {
+    let context: CorpusContext | null = null;
+    try {
+      context = await openCorpus({ ...options, corpus: name });
+      assertCompatible(context.store, context.config, context.embedding);
+      opened.push({ name, scope: context.scope, context, unavailable: null });
+    } catch (error) {
+      context?.close();
+      opened.push({
+        name,
+        scope: "",
+        context: null,
+        unavailable: toGraphDogError(error).message,
+      });
+    }
+  }
+  return opened;
+}
+
+/** Every corpus name visible from `cwd`, across all workspaces. */
+export async function discoverCorpusNames(cwd: string = process.cwd()): Promise<string[]> {
+  const names = new Set<string>();
+  for (const workspace of await visibleWorkspaces(cwd)) {
+    for (const name of await listCorpusNames(workspace)) names.add(name);
+  }
+  return [...names].sort(compareStrings);
 }

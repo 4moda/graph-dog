@@ -57,9 +57,11 @@ graphdog build                       # index everything
 graphdog update                      # re-index only what changed
 
 graphdog search "how are keys rotated"
+graphdog search "onboarding" --all   # every corpus at once, merged by rank
 graphdog explore "access token"      # + the graph neighbourhood
 graphdog read 'docs/token.md#L10-L24'
 graphdog status                      # is this corpus current and usable?
+graphdog eval eval/docs.json         # measure retrieval against a judged dataset
 ```
 
 Every command takes `--json` for the machine-readable contract.
@@ -128,6 +130,36 @@ Two details that matter:
 - **Rank fusion, not weighted sums.** Cosine similarity and BM25 live on
   incomparable scales, so fusing *ranks* means swapping the embedding model
   needs no weight retuning.
+- **The graph contributes one candidate per document**, not one per chunk. A
+  graph edge is a claim about a file; spreading it over forty chunks would turn
+  one claim into forty tied candidates.
+
+### Several corpora at once
+
+`--corpus` is repeatable, `--all` searches everything visible, and each hit
+reports which corpus it came from and where it placed within it. The merge is
+rank-based, for the same reason fusion is: every corpus normalizes its own best
+hit to `1.0`, so interleaving those numbers would promote whichever corpus had
+the least to offer.
+
+Corpora built with different embedding models can still be searched together —
+the response says so in a warning rather than refusing.
+
+### Measuring it
+
+```console
+graphdog eval eval/docs.json --fail-under recall=0.8
+graphdog eval eval/docs.json --baseline eval/baseline.json --out eval/latest.json
+```
+
+A dataset is plain JSON: queries, the refs that answer them, optionally a grade
+and the exact lines. `eval` runs them through the real search pipeline and
+reports Recall@K, Precision@K, MRR, nDCG@K, evidence-line accuracy and latency
+percentiles, then exits **8** if a threshold or a baseline was breached.
+
+GraphDog ships a dataset over its own design docs; `npm run eval` runs it and CI
+gates on it. The first thing it found was a real ranking defect — see
+[the roadmap](docs/design/roadmap.md).
 
 ## Japanese and multilingual text
 
@@ -168,9 +200,11 @@ for another.
 | 4 | Incompatible corpus — rebuild required |
 | 5 | Build completed, but some files failed |
 | 7 | Query ran, nothing cleared the evidence threshold |
+| 8 | Evaluation ran and breached a threshold or its baseline |
 
-`5` and `7` are the ones worth wiring into a script: a partial index and an
-empty result are both real outcomes that would otherwise pass as success.
+`5`, `7` and `8` are the ones worth wiring into a script: a partial index, an
+empty result and a quality regression are all real outcomes that would otherwise
+pass as success.
 
 ## What gets indexed
 
@@ -206,9 +240,10 @@ Each package is layered inward-only: `domain` ← `application` ←
 
 ## Status
 
-Early. The search pipeline, incremental builds, the CLI and the MCP server are
-implemented and tested (860+ tests). Portable corpus export/import and registry
-distribution are designed but not yet built — see the roadmap.
+Early. The search pipeline, incremental builds, cross-corpus search, the
+evaluation harness, the CLI and the MCP server are implemented and tested
+(1100+ tests, plus a CI-gated quality baseline). Portable corpus export/import
+and registry distribution are designed but not yet built — see the roadmap.
 
 ## License
 

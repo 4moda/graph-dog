@@ -19,7 +19,7 @@ import {
 } from "@graphdog/core";
 
 import type { CommandContext, CommandResult } from "./types.ts";
-import { optionBoolean, optionList, optionString, type CommandSpec } from "../../infrastructure/argv.ts";
+import { optionBoolean, optionList, optionSingleCorpus, optionString, type CommandSpec } from "../../infrastructure/argv.ts";
 
 export const addSpec: CommandSpec = {
   name: "add",
@@ -45,7 +45,7 @@ export async function runAdd(context: CommandContext): Promise<CommandResult> {
     throw new UsageError("add: a path is required", { usage: addSpec.usage });
   }
 
-  const resolved = await resolveCorpus(optionString(context.parsed, "corpus"), context.cwd);
+  const resolved = await resolveCorpus(optionSingleCorpus(context.parsed, "add"), context.cwd);
   const config = await readCorpusConfig(resolved);
 
   const absolute = resolve(context.cwd, path);

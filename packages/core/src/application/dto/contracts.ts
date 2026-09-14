@@ -14,8 +14,13 @@
 
 import { CHUNKING_SCHEMA_VERSION, SCHEMA_VERSION } from "../../domain/model/corpus-identity.ts";
 
-/** Shape of the response bodies. Bumped when an observable shape changes. */
-export const CONTRACT_VERSION = "1.0";
+/**
+ * Shape of the response bodies. Bumped when an observable shape changes.
+ *
+ * 1.1 added `corpus` and `corpus_rank` to hits, `corpora` to search responses,
+ * and the `evaluation_report` kind. All additive.
+ */
+export const CONTRACT_VERSION = "1.1";
 
 export { CHUNKING_SCHEMA_VERSION, SCHEMA_VERSION };
 
@@ -59,6 +64,8 @@ export interface GraphNodeDto {
 }
 
 export interface HitDto {
+  /** Which corpus this hit came from. Always present, even for one corpus. */
+  readonly corpus: string;
   readonly ref: string;
   readonly chunk_id: string;
   readonly title: string;
@@ -74,6 +81,27 @@ export interface HitDto {
   readonly tags: readonly string[];
   /** Ready-to-use argument for `graphdog read`, e.g. `docs/a.md#L10-L24`. */
   readonly read_ref: string;
+  /**
+   * 1-based rank of this hit within its own corpus.
+   *
+   * When several corpora are searched, `scores.final` is the cross-corpus fused
+   * score and this is what it was fused from. Keeping both means a caller can
+   * see that a hit ranked first in a small corpus without inferring it.
+   */
+  readonly corpus_rank: number;
+}
+
+/** What one corpus contributed to a search. */
+export interface CorpusSearchSummaryDto {
+  readonly name: string;
+  readonly scope: string;
+  /** Which embedding produced its vectors; differing values are flagged. */
+  readonly embedding_id: string | null;
+  /** How many of the returned hits came from this corpus. */
+  readonly hits: number;
+  /** False when the corpus was skipped; `skipped_reason` then says why. */
+  readonly searched: boolean;
+  readonly skipped_reason: string | null;
 }
 
 export interface FreshnessDto {
@@ -92,7 +120,15 @@ export interface WarningDto {
 export interface SearchResponseDto extends ResponseEnvelope {
   readonly kind: "search";
   readonly query: string;
+  /**
+   * The corpus searched, or a comma-separated list when several were.
+   *
+   * `corpora` is authoritative; this field is for display and for consumers
+   * written against the single-corpus shape.
+   */
   readonly corpus: string;
+  /** One entry per corpus considered, including any that were skipped. */
+  readonly corpora: readonly CorpusSearchSummaryDto[];
   readonly freshness: FreshnessDto;
   readonly hits: readonly HitDto[];
   readonly suggested_queries: readonly string[];
@@ -208,6 +244,92 @@ export interface ArchiveReportDto extends ResponseEnvelope {
   readonly warnings: readonly WarningDto[];
 }
 
+/** One headline metric, as reported by an evaluation run. */
+export interface EvaluationMetricsDto {
+  readonly recall_at_k: number | null;
+  readonly precision_at_k: number | null;
+  readonly reciprocal_rank: number | null;
+  readonly ndcg_at_k: number | null;
+  readonly evidence_checked: number;
+  readonly evidence_correct: number;
+  readonly evidence_accuracy: number | null;
+  readonly retrieved: number;
+  readonly relevant: number;
+}
+
+export interface EvaluationQueryDto {
+  readonly id: string;
+  readonly query: string;
+  readonly note: string | null;
+  readonly metrics: EvaluationMetricsDto;
+  readonly elapsed_ms: number;
+  /** Refs returned, best first, so a regression is diffable without re-running. */
+  readonly retrieved_refs: readonly string[];
+  /** Judged refs that never appeared; the concrete shape of a recall failure. */
+  readonly missing_refs: readonly string[];
+  /** Set when the query itself threw; its metrics are then all null. */
+  readonly error: string | null;
+}
+
+export interface EvaluationLatencyDto {
+  readonly mean_ms: number | null;
+  readonly p50_ms: number | null;
+  readonly p95_ms: number | null;
+  readonly max_ms: number | null;
+}
+
+export interface EvaluationSummaryDto {
+  readonly queries: number;
+  /** Queries the dataset could actually measure, i.e. that carried judgments. */
+  readonly measured: number;
+  readonly recall_at_k: number | null;
+  readonly precision_at_k: number | null;
+  readonly mrr: number | null;
+  readonly ndcg_at_k: number | null;
+  readonly evidence_accuracy: number | null;
+  readonly evidence_checked: number;
+  readonly zero_result_queries: number;
+  readonly missed_queries: number;
+  readonly failed_queries: number;
+  readonly latency: EvaluationLatencyDto;
+}
+
+/** Why a run failed its gate: a floor it missed, or a baseline it fell below. */
+export interface EvaluationGateDto {
+  readonly kind: "threshold" | "regression";
+  readonly metric: string;
+  readonly observed: number | null;
+  readonly required: number | null;
+  readonly message: string;
+}
+
+/** One metric, then versus now. Present for every metric when a baseline is given. */
+export interface EvaluationDeltaDto {
+  readonly metric: string;
+  readonly baseline: number | null;
+  readonly current: number | null;
+  readonly delta: number | null;
+}
+
+export interface EvaluationReportDto extends ResponseEnvelope {
+  readonly kind: "evaluation_report";
+  readonly dataset: string;
+  readonly corpus: string;
+  readonly embedding_id: string;
+  /** Rank cutoff every @K metric in this report was computed at. */
+  readonly k: number;
+  /** The retrieval configuration measured, copied from the search pipeline. */
+  readonly strategy: Readonly<Record<string, unknown>>;
+  readonly summary: EvaluationSummaryDto;
+  readonly queries: readonly EvaluationQueryDto[];
+  /** Null when no baseline was supplied. */
+  readonly comparison: readonly EvaluationDeltaDto[] | null;
+  /** `failed` when a gate was breached; the run itself still completed. */
+  readonly status: "ok" | "failed";
+  readonly gate_failures: readonly EvaluationGateDto[];
+  readonly warnings: readonly WarningDto[];
+}
+
 export interface ErrorDto {
   readonly error: {
     readonly code: string;
@@ -232,8 +354,16 @@ export const WarningCode = {
   LEXICAL_EMBEDDING: "lexical_embedding",
   /** A corpus was skipped while listing because it could not be opened. */
   CORPUS_UNREADABLE: "corpus_unreadable",
+  /** A corpus was skipped during a cross-corpus search, and why. */
+  CORPUS_SKIPPED: "corpus_skipped",
+  /** Corpora with different embeddings were searched together. */
+  MIXED_EMBEDDINGS: "mixed_embeddings",
   /** An extractor reported a non-fatal problem, e.g. a PDF page with no text. */
   EXTRACTION_NOTE: "extraction_note",
+  /** An evaluation query threw; it is scored as a miss and named in the report. */
+  EVAL_QUERY_FAILED: "eval_query_failed",
+  /** The dataset names a ref that is not in the corpus, so it can never be found. */
+  EVAL_UNKNOWN_REF: "eval_unknown_ref",
 } as const;
 
 export type WarningCodeValue = (typeof WarningCode)[keyof typeof WarningCode];

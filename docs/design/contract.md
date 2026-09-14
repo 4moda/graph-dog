@@ -16,7 +16,7 @@ Every response carries three things a consumer can gate on before parsing:
 ```json
 {
   "schema_version": "1",
-  "contract_version": "1.0",
+  "contract_version": "1.1",
   "kind": "search"
 }
 ```
@@ -26,15 +26,23 @@ Every response carries three things a consumer can gate on before parsing:
   minor; a breaking change bumps the major.
 - `kind` — which document this is. Switch on it, not on field presence.
 
+**1.1** added `corpus` and `corpus_rank` to every hit, a `corpora` array to
+search and explore responses, and the `evaluation_report` kind. All additive: a
+1.0 consumer reads a 1.1 response without changes.
+
 ## `search`
 
 ```json
 {
   "schema_version": "1",
-  "contract_version": "1.0",
+  "contract_version": "1.1",
   "kind": "search",
   "query": "JWT rotation",
   "corpus": "docs",
+  "corpora": [
+    { "name": "docs", "scope": "project", "embedding_id": "hash-v1:d256",
+      "hits": 1, "searched": true, "skipped_reason": null }
+  ],
   "freshness": {
     "status": "current",
     "built_at": "2026-09-14T15:15:13.017Z",
@@ -43,6 +51,7 @@ Every response carries three things a consumer can gate on before parsing:
   },
   "hits": [
     {
+      "corpus": "docs",
       "ref": "docs/design/token.md",
       "chunk_id": "9f2c1a...",
       "title": "アクセストークン設計",
@@ -54,7 +63,8 @@ Every response carries three things a consumer can gate on before parsing:
       "graph_path": [],
       "source_revision": "a1b2c3d4",
       "tags": ["auth", "jwt"],
-      "read_ref": "docs/design/token.md#L10-L13"
+      "read_ref": "docs/design/token.md#L10-L13",
+      "corpus_rank": 1
     }
   ],
   "suggested_queries": ["auth", "jwt", "ローテーション"],
@@ -112,6 +122,35 @@ by matching the query — `graph_path` then shows the chain:
 
 **`location.page`** is present only for paginated sources (PDF, slides,
 spreadsheets). Its presence is the signal that line numbers are page-relative.
+
+### Searching several corpora
+
+`--corpus` is repeatable and `--all` searches everything visible; MCP takes
+`corpora` or `all_corpora`. The response shape does not change — `hits` stays a
+single ranked list — but two fields carry the extra structure:
+
+- **`corpora`** reports every corpus considered, including ones that were *not*
+  searched, with `searched: false` and a `skipped_reason`. A corpus that could
+  not be opened never silently disappears from the answer.
+- **`corpus`** and **`corpus_rank`** on each hit say where it came from and
+  where it placed *within its own corpus*, so `#1 in runbooks` stays visible
+  after merging.
+
+Results are merged **by rank, not by score**. Each corpus normalizes its own
+best hit to `1.0`, so a weak corpus's best and a strong corpus's best both read
+as `1.0`; interleaving those numbers would systematically promote the corpus
+with the least to offer. Ranks carry no such distortion, so the merge is another
+RRF pass. `strategy.fusion` reads `rrf-cross-corpus`, and `strategy.per_corpus`
+holds each corpus's own strategy block.
+
+Per-signal scores keep the calibration of the corpus they came from, so only
+`final` is rewritten by the merge. Searching one corpus takes the single-corpus
+path unchanged.
+
+Corpora built with different embedding models can be searched together; the
+response carries a `mixed_embeddings` warning saying so. Refusing would be
+unhelpful, and pretending the scores are comparable would be dishonest — the
+rank-based merge is what makes it defensible at all.
 
 ### Freshness
 
@@ -240,6 +279,105 @@ that says so.
 `exclusions` is the audit trail: every file deliberately skipped, with the
 reason. `"why is this not in my results"` always has an answer.
 
+## `evaluation_report`
+
+Produced by `graphdog eval <dataset.json>`. CLI only: measuring retrieval is a
+maintainer's job, not something an agent should be able to trigger mid-task.
+
+```json
+{
+  "kind": "evaluation_report",
+  "dataset": "graphdog-docs",
+  "corpus": "graphdog",
+  "embedding_id": "hash-v1:d256",
+  "k": 10,
+  "strategy": { "fusion": "rrf", "min_score": 0.12, "top_k": 10 },
+  "summary": {
+    "queries": 12, "measured": 12,
+    "recall_at_k": 1.0, "precision_at_k": 0.141667,
+    "mrr": 0.590278, "ndcg_at_k": 0.669719,
+    "evidence_accuracy": 0.705882, "evidence_checked": 17,
+    "zero_result_queries": 0, "missed_queries": 0, "failed_queries": 0,
+    "latency": { "mean_ms": 3.7, "p50_ms": 2, "p95_ms": 15, "max_ms": 15 }
+  },
+  "queries": [
+    { "id": "why-rrf", "query": "why is reciprocal rank fusion used…",
+      "note": null,
+      "metrics": { "recall_at_k": 1.0, "precision_at_k": 0.2,
+                   "reciprocal_rank": 1.0, "ndcg_at_k": 1.0,
+                   "evidence_checked": 2, "evidence_correct": 2,
+                   "evidence_accuracy": 1.0, "retrieved": 4, "relevant": 2 },
+      "elapsed_ms": 2,
+      "retrieved_refs": ["docs/design/decisions.md", "docs/design/architecture.md"],
+      "missing_refs": [],
+      "error": null }
+  ],
+  "comparison": [
+    { "metric": "recall", "baseline": 0.708333, "current": 1.0, "delta": 0.291667 }
+  ],
+  "status": "ok",
+  "gate_failures": [],
+  "warnings": []
+}
+```
+
+**`null` means unmeasurable, never zero.** A query with no judgments still runs
+and still costs latency, but contributes to no metric. Averaging a fabricated
+zero would move the headline number for no reason, so the aggregate is the mean
+of what could actually be measured, and `measured` says how many that was.
+
+**`evidence_accuracy` is conditional on retrieval.** Only spans of documents
+that were actually found are checked — a missed document is a recall failure and
+is counted as one there. The consequence is that this ratio is *not* monotone
+with retrieval quality: improving recall brings new spans under test and can
+lower it while raising `evidence_correct`. Read it beside `evidence_checked`,
+and gate on recall or MRR.
+
+**`comparison` is null unless `--baseline` was given.** `status` is `failed`
+when any gate was breached, and `gate_failures` says which and why. The run
+itself still completed; the process exits **8**, so CI can tell "search got
+worse" apart from "the command was wrong".
+
+A query that throws is recorded with an `error` and scored as a miss rather than
+aborting the run — a dataset of forty queries should not lose its report because
+one of them hit a bad extractor.
+
+### The dataset format
+
+Plain JSON, written and reviewed by hand, meant to live beside the documents it
+judges:
+
+```jsonc
+{
+  "version": 1,
+  "name": "auth-docs",
+  "corpus": "docs",
+  "queries": [
+    {
+      "id": "jwks-rotation",
+      "query": "how are signing keys rotated",
+      "note": "paraphrase: the docs never say 'rotate'",
+      "relevant": [
+        { "ref": "docs/keys.md", "grade": 3, "lines": "12-28" },
+        "docs/token.md"
+      ]
+    }
+  ]
+}
+```
+
+`grade` is 0–3 and defaults to 1, so a binary dataset needs no grades at all. A
+bare string is shorthand for `{ "ref": …, "grade": 1 }`. `lines` accepts
+`"12-28"`, `"12"`, `12` or `[12, 28]`, and is matched by **overlap**: chunk
+boundaries move when chunking parameters change, and demanding an exact match
+would measure the chunker rather than the retrieval.
+
+Validation is strict and names the exact entry (`queries[1].relevant[0].ref`). A
+dataset is the yardstick every later measurement is compared against, so a
+typo'd ref that silently scored as a miss would make the whole number wrong in a
+direction nobody would question — which is also why a judged ref the corpus does
+not contain raises `eval_unknown_ref` rather than passing quietly.
+
 ## Errors
 
 Failures return the same envelope on every interface — on stderr for the CLI,
@@ -265,6 +403,10 @@ as `structuredContent` with `isError: true` for MCP:
 | `extraction_failed` | — | Per-file; collected into `failures` |
 | `error` | 1 | Unexpected |
 
+Two exit codes report an outcome rather than an error, and have no error
+envelope: **7** when a query ran and nothing cleared the evidence threshold, and
+**8** when an evaluation ran and breached a gate.
+
 `details` carries `hint`, `remedy` and `available` where they apply — enough to
 recover without reading the docs.
 
@@ -282,6 +424,10 @@ Non-fatal, never swallowed, always in a `warnings` array:
 | `lexical_embedding` | Corpus uses the built-in lexical embedder |
 | `extraction_note` | A file extracted with caveats, e.g. a PDF page with no text layer |
 | `corpus_unreadable` | A corpus was skipped while listing |
+| `corpus_skipped` | A corpus could not be opened during a cross-corpus search |
+| `mixed_embeddings` | Corpora with different embedding models were searched together |
+| `eval_query_failed` | An evaluation query threw; it is scored as a miss |
+| `eval_unknown_ref` | The dataset judges a ref the corpus does not contain |
 
 ## Stability
 
