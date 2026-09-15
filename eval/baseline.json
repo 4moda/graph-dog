@@ -18,9 +18,9 @@
   "summary": {
     "recall_at_k": 1,
     "precision_at_k": 0.16,
-    "mrr": 0.627778,
-    "ndcg_at_k": 0.657388,
-    "evidence_accuracy": 0.625,
+    "mrr": 0.633333,
+    "ndcg_at_k": 0.707638,
+    "evidence_accuracy": 0.666667,
     "evidence_checked": 24
   }
 }

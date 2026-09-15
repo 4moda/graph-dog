@@ -251,7 +251,7 @@ Each package is layered inward-only: `domain` ← `application` ←
 - [Architecture](docs/design/architecture.md) — the layering, and why
 - [Contract](docs/design/contract.md) — the JSON every interface returns
 - [Decisions](docs/design/decisions.md) — what was chosen, and what was rejected
-- [Roadmap](docs/design/roadmap.md) — what is not built yet
+- [Roadmap](docs/design/roadmap.md) — what is not built yet, how it compares with Graphify, and the evaluation plan
 - [Contributing](CONTRIBUTING.md) — conventions and how to run the tests
 
 ## Status
