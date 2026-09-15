@@ -1,7 +1,8 @@
 # Roadmap
 
-What exists, what does not, and what was deliberately deferred -- and how that
-compares with Graphify, the nearest widely used tool.
+What exists, what does not, and what was deliberately deferred -- and what
+GraphDog takes from Graphify, the nearest widely used tool: its shape as a
+product and the way it is installed, not its feature list.
 
 ## Built
 
@@ -22,42 +23,47 @@ compares with Graphify, the nearest widely used tool.
 - Compatibility gate, freshness reporting, auditable exclusions and failures
 - 1290+ tests, every source file with a colocated spec
 
-## Next to Graphify
+## What to take from Graphify
 
 [Graphify](https://github.com/Graphify-Labs/graphify) (formerly
 `safishamsi/graphify`) is the closest widely used tool: a skill for coding
 agents that turns a folder into a knowledge graph. Everything said about it here
 comes from its README as of September 2026.
 
-The two answer different questions. Graphify maps **structure** -- which
-functions, modules and concepts connect, and through what. GraphDog finds
-**evidence** -- where exactly something is stated, verbatim, with a line range a
-reader can check. Graphify builds its graph from code deterministically but uses
-an LLM for everything else; GraphDog uses none unless asked.
+GraphDog is not trying to become Graphify. The two answer different questions.
+Graphify maps **structure** -- which symbols and concepts connect -- and uses an
+LLM for everything that is not code. GraphDog finds **evidence** -- where exactly
+something is stated, verbatim, with a line range a reader can check -- and uses
+no model unless asked. Code structure in particular is served better by tools
+built for it, such as code-review-graph or Graphify's own AST pass; GraphDog sits
+beside them rather than competing.
 
-| | Graphify | GraphDog | For the roadmap |
+What is worth copying is the product shape: one install, one command to connect
+an agent, a plain account of what was set up, and an uninstall that takes all of
+it back. That is item 2 below, designed in [Distribution and
+lifecycle](distribution.md).
+
+| | Graphify | GraphDog today | For the roadmap |
 |---|---|---|---|
-| **Code** | tree-sitter AST, 37 languages; `calls`, `imports`, `inherits` edges; no LLM | indexed as text chunks; no symbols, no call graph | **Adopt** -- the same deterministic extraction fits every GraphDog constraint |
-| **Docs, PDFs, images** | an LLM extracts concepts and relations; audio and video transcribed locally with faster-whisper | Markdown, text and code; PDF and DOCX behind optional deps; no images or audio | **Partly** -- local OCR and transcription behind optional deps; LLM extraction only as opt-in enrichment |
-| **Graph unit** | concepts and symbols | documents, with tag and directory waypoints | **Add** symbol nodes; keep documents as the anchors evidence hangs from |
-| **Edge provenance** | every edge `EXTRACTED`, `INFERRED` or `AMBIGUOUS` | every edge explained in a phrase, but unlabelled -- although `similar` edges are computed, which is to say inferred | **Adopt now**, before more inferred edges exist |
-| **Orientation** | Leiden communities, named by an LLM; a report of hub ("god") nodes, cross-module connections and suggested questions | `explore` neighbourhoods; `suggested_queries` from tags and headings | **Adopt** a deterministic `overview`: communities, hubs and bridges, named from titles and tags |
-| **Queries** | `query` (a subgraph), `path A B`, `explain`; MCP `query_graph`, `get_node`, `get_neighbors`, `shortest_path` | `search`, `explore`, `read`; per-signal scores; exit 7 when nothing qualifies | **Adopt** `path`, returned with the span that justifies each edge |
+| **Install** | `uv tool install graphifyy`, then `graphify install` or `graphify <platform> install`, for the user or `--project` | `npm install -g graphdog`; the MCP config written by hand, pointing at `npx` | **Adopt the shape**, on Homebrew: `brew install`, then `graphdog install <agent>` |
+| **Upgrade** | `uv tool upgrade graphifyy`, then `graphify install` again | `npm update -g graphdog` | `brew upgrade graphdog`; `graphdog doctor` flags integrations an older version wrote |
+| **Uninstall** | `graphify uninstall`, per-platform variants, `graphify hook uninstall`; `--purge` also deletes the generated output, which is otherwise kept | nothing to undo but the npm package | **Adopt**: `graphdog uninstall`, with `--purge` for data, driven by a record of what was written |
+| **What is installed** | `graphify hook status`; no single command for the rest | nothing | **Improve on it**: `graphdog doctor` |
+| **Agent integration** | per-platform instruction files and hooks that steer the agent to the graph; a strict mode that blocks the first read | an MCP server | MCP registration plus a marker-delimited instruction block; steer, never block |
+| **Code** | tree-sitter AST, 37 languages; `calls`, `imports`, `inherits` edges; no LLM | indexed as text chunks | **Leave to code-graph tools**; an optional adapter at most |
+| **Docs, PDFs, images** | an LLM extracts concepts and relations; audio and video transcribed locally | Markdown, text and code; PDF and DOCX behind optional deps | local OCR and transcription, optional; LLM enrichment opt-in only |
+| **Orientation** | a report of hub nodes, cross-module links and suggested questions; Leiden communities named by an LLM | `explore` (the graph neighbourhood around a query's hits), `suggested_queries` (from tags and headings), `status` (counts, freshness). No query-free overview, and no model anywhere in it | **Later, and small**: hub documents and top tags in `status` |
+| **Edge provenance** | every edge `EXTRACTED`, `INFERRED` or `AMBIGUOUS` | every edge explained in a phrase but unlabelled -- although `similar` edges are computed, which is to say inferred | **Adopt** |
 | **Citations** | file and line for code nodes | an exact line range on every hit, verbatim through `read` | GraphDog's reason to exist; the rule for everything new |
-| **Retrieval** | graph traversal; no vector store | dense + BM25 + graph, fused by rank, optional rerank | -- |
-| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update`, freshness reporting, compatibility gate | **Adopt** `watch` and a post-commit hook; no merge driver, since the index is derived and never committed |
-| **Agent integration** | installers for 20+ platforms; hooks that steer agents to the graph before reading files, and a strict mode that blocks the first read | npm CLI and MCP server | **Adopt** installers for a few platforms; steer, never block |
-| **Views and exports** | interactive HTML, Obsidian, GraphML, Neo4j, SVG, a wiki | none | **Later** -- read-only exports of the store |
-| **Evaluation** | public benchmarks (LOCOMO n=300, LongMemEval-S n=50): recall and end-to-end QA accuracy, QA scored by an LLM judge validated against a second judge (90.6% agreement, kappa 0.81) | 15 hand-judged queries over its own docs; retrieval and citation metrics; a CI gate | **Both kinds are needed** -- see *Evaluation* below |
-| **Privacy** | code stays local; other inputs go to the configured LLM backend unless that backend is local | nothing leaves the machine; optional models run locally | keep |
-
-The comparison says as much about what GraphDog should not become as about what
-it should borrow; see *Not planned*.
+| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update`, freshness reporting, compatibility gate | **Later**: a post-commit hook, installed and removed like any integration; no merge driver, since the index is never committed |
+| **Views and exports** | interactive HTML, Obsidian, GraphML, Neo4j, SVG, a wiki | none | **Later**: read-only exports of the store |
+| **Evaluation** | public benchmarks (LOCOMO n=300, LongMemEval-S n=50): recall and end-to-end QA accuracy, QA scored by an LLM judge validated against a second judge (90.6% agreement, kappa 0.81) | 15 hand-judged queries over its own docs; retrieval and citation metrics; a CI gate | **Both kinds are needed** -- item 1 |
+| **Privacy** | code stays local; other inputs go to the configured LLM backend unless that backend is local | nothing leaves the machine; the optional ONNX models embed and rerank text locally, and none of them generates any | keep |
 
 ## Next
 
-In order. The first item comes first because every item after it is a ranking or
-graph change, and each has to land with a before-and-after it can be judged by.
+Items 1 and 2 are independent and can proceed in parallel. Everything after them
+is a ranking or graph change, and lands with a before-and-after from item 1.
 
 ### 1. Evaluation: a dataset that can tell a change from noise
 
@@ -102,8 +108,8 @@ category.
 | Japanese | a subset of a public Japanese retrieval set (MIRACL-ja, JQaRA or JaCWIR, licence permitting) plus hand-written queries over Japanese technical docs | bigrams against `kuromoji`; lexical against semantic on CJK | second |
 | public English | small BEIR sets (SciFact, NFCorpus) | the BM25 implementation against published BM25 baselines; lexical, semantic and rerank against each other | second |
 | real work | a corpus people actually search, with queries harvested from the predecessor's use and judged by the documents' owners | the defaults, on the workload they exist for; private, run locally | as soon as one is available |
-| graph | a linked Markdown wiki, with multi-hop questions whose answer is *linked from* what the query matches rather than similar to it | graph expansion at 0 hops against 2: whether the graph signal helps | with `overview` and `path` |
-| code | docstring-to-function queries in the style of CodeSearchNet, over a few repositories | text chunks against symbol-aware chunks | with code extraction |
+| graph | a linked Markdown wiki, with multi-hop questions whose answer is *linked from* what the query matches rather than similar to it | graph expansion at 0 hops against 2: whether the graph signal helps | with any graph change |
+| code | docstring-to-function queries in the style of CodeSearchNet, over a few repositories | whether an optional code adapter improves citations into source files | only if that adapter is built |
 | cross-corpus | one suite's judgments split across two or three corpora, one of them with a different embedding | the rank merge against a single combined corpus | with the harness changes below |
 | scale | synthetic corpora of 1k, 10k and 100k documents | build throughput, index size, p50 and p95 latency; where exhaustive vector scan stops being enough | before any ANN work |
 
@@ -134,7 +140,30 @@ each licence is checked before its suite is added.
 
 No suite's numbers change a default until it has on the order of 50 queries.
 
-### 2. Ranking work the harness has already identified
+### 2. Distribution and lifecycle: Homebrew, and an uninstall that leaves nothing behind
+
+Designed in [Distribution and lifecycle](distribution.md). In short:
+
+- **Homebrew first**, from a tap (`brew install 4moda/graphdog/graphdog`) and in
+  homebrew-core once GraphDog meets its acceptance policy. Upgrade and removal
+  are `brew upgrade` and `brew uninstall`. npm remains for Windows without WSL
+  and for CI.
+- **One install gives the CLI and the MCP server**: the `graphdog` package
+  depends on `@graphdog/mcp` and exposes it as `graphdog mcp`. The packages stay
+  separate.
+- **`graphdog install <agent> [--project]`** registers the MCP server -- the
+  installed binary, never `npx` -- and adds a marker-delimited instruction block
+  that coexists with other tools' blocks.
+- **`graphdog uninstall [--purge]`** removes exactly what a ledger says was
+  written. Homebrew cannot do this part: `brew uninstall` removes only what it
+  installed, and `--zap` is for casks.
+- **`graphdog doctor`** reports everything installed and anything broken,
+  including integrations written by an older version and corpora this version
+  cannot read.
+- **Extras and model caches move out of the install directory**, so a
+  `brew upgrade` does not silently drop semantic search.
+
+### 3. Ranking work the harness has already identified
 
 The harness's first finding was a defect: graph expansion gave every chunk of a
 reached document the same score, so one graph claim became forty tied candidates
@@ -163,41 +192,7 @@ What the dataset still shows, now at 15 queries:
 
 Each of these is re-measured on the suites from item 1 before anyone acts on it.
 
-### 3. Code as structure, not just text
-
-Today source code is chunked like prose. Graphify shows how much a deterministic
-pass recovers: tree-sitter yields symbols and `calls`, `imports` and `inherits`
-edges with no model and nothing leaving the machine, so every GraphDog
-constraint holds.
-
-- symbol nodes -- function, class, module -- and `defines`, `calls` and `imports`
-  edges, each carrying the line range it came from
-- chunk boundaries at symbol boundaries, so a hit cites a whole function rather
-  than an arbitrary window
-- tree-sitter's WebAssembly build, loaded per language on demand, so the default
-  install still compiles nothing -- the reasoning that chose `node:sqlite`
-
-This moves the chunking fingerprint, so existing corpora are refused until they
-are rebuilt, as designed. It becomes a default only after the code suite says so.
-
-### 4. Orientation: `overview` and `path`
-
-Graphify's report answers "what is in here, and what holds it together" before
-anyone knows what to search for. `explore` needs a query first.
-
-- **`overview`** -- communities over the document graph, hub documents, bridges
-  between communities, and questions the graph is placed to answer; a CLI command
-  and a read-only MCP tool. Community detection has to be deterministic -- fixed
-  seed, ordered iteration, code-unit sorting -- and communities are named from
-  titles, headings and tags, not by a model.
-- **`path <ref> <ref>`** -- the chain of edges connecting two documents, each edge
-  with the span that created it: the line a link is on, the occurrence of a
-  shared tag. "Why are these related" is answered with evidence, not asserted.
-
-Measured by the graph suite. Their output is also held to a contract property
-rather than a metric: every hub, bridge and path must be checkable.
-
-### 5. Edge provenance
+### 4. Edge provenance
 
 Label every edge `extracted` -- written in the source: a link, a tag, a
 directory, and later a call -- or `inferred` -- computed: `similar` edges today,
@@ -208,20 +203,28 @@ before any model-derived edge does.
 
 ## Later
 
+- **Orientation in `status`** -- hub documents (the most linked), the commonest
+  tags and each source's size, so an agent meeting a corpus for the first time
+  sees what is in it before it knows what to search for. Deterministic, from the
+  graph that already exists; community detection only if the graph suite shows
+  it adds something these do not.
+- **`path <ref> <ref>`** -- the chain of edges connecting two documents, each with
+  the span that created it.
+- **An optional code adapter** -- so a hit in a source file can cite a whole
+  function: either by reading symbol spans from a code-graph tool such as
+  code-review-graph, or through an optional tree-sitter chunker. Never required,
+  and never a call graph of GraphDog's own: code structure is those tools' job.
 - **Keeping the index current unasked** -- `graphdog watch`, and a post-commit
-  and post-checkout hook that runs `update`. No merge driver: the index is derived
-  and never committed, which is the problem Graphify's driver exists to solve.
-- **Agent integration** -- installers that register the MCP server and write the
-  instruction files for a few agent runtimes (formerly "agent skill packaging").
-  Steer agents to search before reading; never block a read, because an agent
-  that cannot open a file because an index is stale is worse off than one with no
-  index.
+  and post-checkout hook that runs `update`, installed and removed through the
+  same ledger as any integration.
 - **Opt-in LLM enrichment** -- concept nodes, inferred edges and community names
   from a configured model, as a separate build stage (this absorbs "query
   expansion and optional LLM summarization"). Recorded in the corpus identity the
   way the embedding model is, labelled `inferred`, every edge citing the spans it
   came from, and kept out of ranking unless enabled. The no-LLM-required
   guarantee stays.
+- **Other package managers** -- winget or Scoop for Windows without WSL, if npm
+  proves awkward there.
 - **Local media** -- images through local OCR, audio and video through a local
   speech model, behind optional dependencies. Needs locations beyond lines: page
   regions and timestamps.
@@ -246,6 +249,8 @@ before any model-derived edge does.
 - **A chat UI.** This is search infrastructure. Something else can build a UI on
   the contract.
 - **A required LLM.** Building and searching stays fully local and offline.
+- **Reimplementing code intelligence.** Call graphs and symbol navigation belong
+  to code-graph tools. GraphDog indexes documents and cites them.
 - **An LLM-built graph by default.** Graphify's graph of everything that is not
   code comes from a model. GraphDog's default graph stays deterministic and
   reproducible; model-derived structure stays opt-in and labelled.
