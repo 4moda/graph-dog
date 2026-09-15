@@ -5,3 +5,7 @@ dist/
 .graphdog/corpora/*/manifest.json
 *.gdog
 .DS_Store
+# Added by code-review-graph
+.code-review-graph/
+# Local, per-machine tool settings
+.claude/settings.local.json
