@@ -284,5 +284,7 @@ keeping secrets out of the tree.
 | Cross-corpus merge | Rank-based (RRF), never score-based |
 | Quality gate | `npm run eval` against a checked-in baseline, CI-enforced |
 | Artifact format | `.gdog` — gzip + ustar, per-file SHA-256 manifest, verified before install |
+| Distribution | Homebrew tap first (macOS, Linux, WSL), npm for Windows and CI; planned in [distribution.md](distribution.md) |
+| Code structure | Left to code-graph tools such as code-review-graph; an optional adapter at most |
 | Trade-off accepted | Weaker default retrieval, in exchange for a zero-dependency offline install that states its own limits |
 | Re-evaluate if | The lexical default proves inadequate in practice, or corpus sizes outgrow exhaustive vector scan |
