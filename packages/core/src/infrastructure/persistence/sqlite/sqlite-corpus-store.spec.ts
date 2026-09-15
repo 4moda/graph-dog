@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -486,6 +486,56 @@ describe("infrastructure/persistence/sqlite/sqliteCorpusStore", () => {
       assert.equal(second.vectors.size(), 1);
       assert.equal(second.lexical.postingsFor(["persisted"]).length, 1);
       second.close();
+    });
+  });
+
+  describe("snapshotTo", () => {
+    function snapshotPath(name = "snapshot.sqlite3"): string {
+      counter += 1;
+      return join(directory, `${counter}-${name}`);
+    }
+
+    it("writes a copy that opens as the same corpus", async () => {
+      const store = await freshStore();
+      store.documents.upsert(document());
+      const out = snapshotPath();
+      store.snapshotTo(out);
+      store.close();
+
+      const copy = await SqliteCorpusStore.open(out);
+      assert.equal(copy.documents.count(), 1);
+      assert.equal(copy.documents.get("docs/a.md")?.title, "Doc A");
+      copy.close();
+    });
+
+    it("writes a rollback-journal file, so the copy needs no -wal sidecar", async () => {
+      const store = await freshStore();
+      const out = snapshotPath();
+      store.snapshotTo(out);
+      store.close();
+      const header = await readFile(out);
+      // Bytes 18 and 19 are the file-format write and read versions: 1 for a
+      // rollback journal, 2 for WAL.
+      assert.equal(header[18], 1);
+      assert.equal(header[19], 1);
+    });
+
+    it("refuses to overwrite an existing file", async () => {
+      const store = await freshStore();
+      const out = snapshotPath();
+      store.snapshotTo(out);
+      assert.throws(() => store.snapshotTo(out));
+      store.close();
+    });
+
+    it("handles a path containing a quote", async () => {
+      counter += 1;
+      const quoted = join(directory, `${counter}-it's here`);
+      await mkdir(quoted);
+      const store = await freshStore();
+      store.snapshotTo(join(quoted, "snapshot.sqlite3"));
+      store.close();
+      assert.ok((await readFile(join(quoted, "snapshot.sqlite3"))).length > 0);
     });
   });
 });

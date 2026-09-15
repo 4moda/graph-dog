@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type {
+  ArchiveReportDto,
   BuildReportDto,
   CorpusInfoDto,
   CorpusListDto,
@@ -14,6 +15,7 @@ import type {
 
 import {
   defaultRenderOptions,
+  renderArchiveReport,
   renderBuildReport,
   renderCorpusList,
   renderError,
@@ -670,5 +672,110 @@ describe("cli/infrastructure/render/humanRenderer: renderEvaluation", () => {
       plain,
     );
     assert.match(output, /not in this corpus/);
+  });
+});
+
+// --- archives ----------------------------------------------------------------
+
+function archiveReport(overrides: Partial<ArchiveReportDto> = {}): ArchiveReportDto {
+  return {
+    ...ENVELOPE,
+    kind: "archive_report",
+    operation: "export",
+    corpus: "docs",
+    archive_path: "/work/docs.gdog",
+    bytes: 20480,
+    checksum: "a".repeat(64),
+    destination: null,
+    manifest: {
+      format_version: 1,
+      corpus: "docs",
+      created_at: "2026-09-15T12:00:00.000Z",
+      created_by: "graphdog 0.1.0",
+      built_at: "2026-09-14T00:00:00.000Z",
+      identity: {
+        schema_version: "1",
+        chunking_schema_version: "1",
+        embedding_id: "hash-v1:d256",
+        chunking_fingerprint: "chunk1:0123456789abcdef",
+      },
+      counts: { documents: 4, chunks: 57, nodes: 5, edges: 10 },
+      sources: [
+        { id: "docs", revision: null },
+        { id: "spec", revision: "a1b2c3d4e5f60718293a4b5c" },
+      ],
+    },
+    warnings: [],
+    ...overrides,
+  };
+}
+
+const imported = (overrides: Partial<ArchiveReportDto> = {}): ArchiveReportDto =>
+  archiveReport({
+    operation: "import",
+    destination: { path: "/home/u/.graphdog/corpora/docs", scope: "home", replaced: false },
+    ...overrides,
+  });
+
+describe("cli/infrastructure/render/humanRenderer: renderArchiveReport", () => {
+  it("says what was exported, where to, and how large it is", () => {
+    const output = renderArchiveReport(archiveReport(), plain);
+    assert.match(output, /^exported docs to \/work\/docs\.gdog \(20 KB\)/);
+  });
+
+  it("formats sizes to recognisable precision", () => {
+    assert.match(renderArchiveReport(archiveReport({ bytes: 1536 }), plain), /\(1\.5 KB\)/);
+    assert.match(renderArchiveReport(archiveReport({ bytes: 512 }), plain), /\(512 B\)/);
+    assert.match(renderArchiveReport(archiveReport({ bytes: 3 * 1024 ** 2 }), plain), /\(3\.0 MB\)/);
+  });
+
+  it("always shows the checksum, which is how a copy is checked", () => {
+    assert.match(renderArchiveReport(archiveReport(), plain), new RegExp(`sha256 ${"a".repeat(64)}`));
+  });
+
+  it("describes the corpus: counts, build time and embedding", () => {
+    const output = renderArchiveReport(archiveReport(), plain);
+    assert.match(output, /4 document\(s\), 57 chunk\(s\), 5 node\(s\), 10 edge\(s\)/);
+    assert.match(output, /built 2026-09-14T00:00:00\.000Z with hash-v1:d256/);
+  });
+
+  it("lists sources with short revisions, so provenance is visible at a glance", () => {
+    assert.match(renderArchiveReport(archiveReport(), plain), /sources docs, spec@a1b2c3d4e5f6\n/);
+  });
+
+  it("says where an import landed and which workspace that is", () => {
+    const output = renderArchiveReport(imported(), plain);
+    assert.match(output, /^imported docs from \/work\/docs\.gdog/);
+    assert.match(output, /into \/home\/u\/\.graphdog\/corpora\/docs \(home workspace\)/);
+  });
+
+  it("shows the new name when an import was renamed", () => {
+    const output = renderArchiveReport(imported({ corpus: "team-docs" }), plain);
+    assert.match(output, /^imported docs as team-docs from/);
+    assert.match(output, /--corpus team-docs/);
+  });
+
+  it("says replaced rather than imported when it overwrote a corpus", () => {
+    const output = renderArchiveReport(
+      imported({ destination: { path: "/p", scope: "project", replaced: true } }),
+      plain,
+    );
+    assert.match(output, /^replaced docs from/);
+  });
+
+  it("tells an importer how to use what they just imported", () => {
+    assert.match(renderArchiveReport(imported(), plain), /graphdog search "<query>" --corpus docs/);
+  });
+
+  it("does not claim verification for an export", () => {
+    assert.doesNotMatch(renderArchiveReport(archiveReport(), plain), /verified/);
+  });
+
+  it("carries warnings through", () => {
+    const output = renderArchiveReport(
+      imported({ warnings: [{ code: "corpus_shadowed", message: "a project corpus takes precedence", details: {} }] }),
+      plain,
+    );
+    assert.match(output, /! a project corpus takes precedence/);
   });
 });

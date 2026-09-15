@@ -51,7 +51,17 @@ export async function loadCorpusConfig(path: string): Promise<CorpusConfig> {
 
 export async function saveCorpusConfig(path: string, config: CorpusConfig): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(serializeCorpusConfig(config), null, 2)}\n`, "utf8");
+  await writeFile(path, formatCorpusConfig(config), "utf8");
+}
+
+/**
+ * The config file's exact text.
+ *
+ * One formatter for the file on disk and the copy inside an archive, so an
+ * exported config is byte-for-byte what `graphdog init` would have written.
+ */
+export function formatCorpusConfig(config: CorpusConfig): string {
+  return `${JSON.stringify(serializeCorpusConfig(config), null, 2)}\n`;
 }
 
 export function parseCorpusConfig(input: unknown, path = "<config>"): CorpusConfig {

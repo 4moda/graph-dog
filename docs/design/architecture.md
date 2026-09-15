@@ -206,6 +206,24 @@ where graceful degradation would be actively harmful: searching a corpus whose
 vectors came from a different model returns confident, well-formatted,
 meaningless results, and nothing downstream can detect it.
 
+## Portable archives
+
+`export` and `import` move a corpus between machines as one `.gdog` file, and
+the layers split the work as they do everywhere else:
+
+- **domain** — the manifest and every check on it: entry names against a fixed
+  list, sizes and SHA-256s, the format version. Pure, so it is tested against
+  hand-built hostile archives with no filesystem.
+- **application** — the order the checks run in, and what both sides agree on:
+  a database with triggers or views is refused by export as well as import, so
+  an export never ships something an import would reject.
+- **infrastructure** — gzip, a ustar reader that accepts regular files only, a
+  read-only SQLite inspector with `trusted_schema` off, and an installer that
+  stages the corpus and moves it into place with one rename.
+
+Export deliberately opens the store without the embedding model: for a
+semantic corpus, loading the model just to copy a file would mean a download.
+
 ## Determinism
 
 The reproducibility claim is load-bearing — it is what makes a corpus portable

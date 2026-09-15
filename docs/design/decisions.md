@@ -101,9 +101,16 @@ is shown with the hit.
 
 ## 8. Artifact format
 
-**Deferred.** Export/import is designed (see the roadmap) but not built. The
-corpus is already a single file that can be copied, with its identities recorded
-and checked, which covers the common case.
+**`.gdog`: a gzip-compressed ustar archive of three flat files** — a manifest,
+the corpus config, and a `VACUUM INTO` snapshot of the database.
+
+Ordinary formats, so an archive can be inspected with `tar -tzf` before anyone
+imports it. A hand-written reader for the small subset used — regular files
+only — because every entry type a reader understands is one a crafted archive
+can abuse. The manifest records each file's SHA-256 and the identities the
+compatibility gate checks; an import verifies all of it, then checks the
+database itself against the manifest, before writing anything. The full order
+is in the [contract](contract.md#the-archive-format).
 
 ## 9. Config format
 
@@ -256,6 +263,10 @@ keeping secrets out of the tree.
 | Refusing to search corpora with different embeddings | Unhelpful; the rank-based merge makes it defensible, and a warning makes it honest |
 | Scoring a missed document as an evidence-accuracy failure | Conflates a recall failure with a citation failure; they need separate fixes |
 | An `eval` MCP tool | Measuring retrieval is a maintainer's job, not something an agent should trigger mid-task |
+| zip as the archive container | Its central directory can disagree with its local headers, the root of a family of extraction bugs; tar has one header per entry |
+| A tar or zip dependency | Three regular files need a short reader; a general-purpose extractor supports exactly the entry types a crafted archive abuses |
+| Copying the SQLite file to export | A copy taken mid-build can capture half a transaction, and a WAL file is incomplete without its sidecar |
+| Archive tools over MCP | Export and import write files at caller-chosen paths; an agent consulting a corpus should not be able to |
 
 ---
 
@@ -272,5 +283,6 @@ keeping secrets out of the tree.
 | Interfaces | CLI (canonical) · MCP · TypeScript API |
 | Cross-corpus merge | Rank-based (RRF), never score-based |
 | Quality gate | `npm run eval` against a checked-in baseline, CI-enforced |
+| Artifact format | `.gdog` — gzip + ustar, per-file SHA-256 manifest, verified before install |
 | Trade-off accepted | Weaker default retrieval, in exchange for a zero-dependency offline install that states its own limits |
 | Re-evaluate if | The lexical default proves inadequate in practice, or corpus sizes outgrow exhaustive vector scan |

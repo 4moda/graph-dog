@@ -86,6 +86,27 @@ jobs:
             process.stdin.on("end", () => process.stdout.write(JSON.parse(chunks.join("")).hits[0].read_ref));
           ')"
 
+      - name: Export, inspect with tar, import elsewhere, search
+        run: |
+          set -euo pipefail
+          CLI="node $GITHUB_WORKSPACE/packages/cli/dist/main.js"
+          cd /tmp/smoke
+          $CLI export --out /tmp/smoke/demo.gdog
+          # An ordinary tar archive, listable before anyone imports it.
+          test "$(tar -tzf /tmp/smoke/demo.gdog | tr '\n' ' ')" = "manifest.json graphdog.json corpus.sqlite3 "
+          export GRAPHDOG_HOME=/tmp/smoke-home
+          mkdir -p /tmp/elsewhere && cd /tmp/elsewhere
+          $CLI import /tmp/smoke/demo.gdog --as imported
+          $CLI search "JWKS" --corpus imported --json | node -e '
+            const chunks = [];
+            process.stdin.on("data", (c) => chunks.push(c));
+            process.stdin.on("end", () => {
+              const result = JSON.parse(chunks.join(""));
+              if (result.hits.length === 0) throw new Error("imported corpus returned no hits");
+              console.log("round trip ok:", result.hits[0].read_ref);
+            });
+          '
+
       - name: Exit code for an unanswerable query is 7
         run: |
           cd /tmp/smoke

@@ -16,7 +16,7 @@ Every response carries three things a consumer can gate on before parsing:
 ```json
 {
   "schema_version": "1",
-  "contract_version": "1.1",
+  "contract_version": "1.2",
   "kind": "search"
 }
 ```
@@ -27,15 +27,16 @@ Every response carries three things a consumer can gate on before parsing:
 - `kind` — which document this is. Switch on it, not on field presence.
 
 **1.1** added `corpus` and `corpus_rank` to every hit, a `corpora` array to
-search and explore responses, and the `evaluation_report` kind. All additive: a
-1.0 consumer reads a 1.1 response without changes.
+search and explore responses, and the `evaluation_report` kind. **1.2** emits
+`archive_report` from `export` and `import`. Both additive: a 1.0 consumer reads
+a 1.2 response without changes.
 
 ## `search`
 
 ```json
 {
   "schema_version": "1",
-  "contract_version": "1.1",
+  "contract_version": "1.2",
   "kind": "search",
   "query": "JWT rotation",
   "corpus": "docs",
@@ -279,6 +280,91 @@ that says so.
 `exclusions` is the audit trail: every file deliberately skipped, with the
 reason. `"why is this not in my results"` always has an answer.
 
+## `archive_report`
+
+Produced by `graphdog export` and `graphdog import`. CLI only, like `eval`: both
+write files at paths the caller chooses, which an agent consulting a corpus
+should not be able to do.
+
+```json
+{
+  "kind": "archive_report",
+  "operation": "import",
+  "corpus": "handbook",
+  "archive_path": "/home/me/downloads/docs.gdog",
+  "bytes": 20480,
+  "checksum": "3f2a…",
+  "destination": { "path": "/home/me/.graphdog/corpora/handbook", "scope": "home", "replaced": false },
+  "manifest": {
+    "format_version": 1,
+    "corpus": "docs",
+    "created_at": "2026-09-15T12:00:00.000Z",
+    "created_by": "graphdog 0.1.0",
+    "built_at": "2026-09-14T15:15:13.017Z",
+    "identity": { "schema_version": "1", "chunking_schema_version": "1",
+                  "embedding_id": "hash-v1:d256", "chunking_fingerprint": "chunk1:9a0c…" },
+    "counts": { "documents": 4, "chunks": 57, "nodes": 5, "edges": 10 },
+    "sources": [ { "id": "docs", "revision": null }, { "id": "spec", "revision": "a1b2c3d4" } ]
+  },
+  "warnings": []
+}
+```
+
+`checksum` is the SHA-256 of the archive file itself, so a copy can be checked
+before anyone imports it. `destination` is null for an export. `corpus` is the
+name on this machine; `manifest.corpus` is the name it was built under, which
+`--as` does not change.
+
+### The archive format
+
+A `.gdog` file is a gzip-compressed ustar archive of exactly three files, so
+`tar -tzf docs.gdog` lists it:
+
+```
+manifest.json    what the archive claims: identity, counts, sources, and the
+                 size and SHA-256 of each file below
+graphdog.json    the corpus config, byte-for-byte as `graphdog init` writes it
+corpus.sqlite3   a VACUUM INTO snapshot: consistent, compacted, one file
+```
+
+The manifest is written from the snapshot being shipped, not from the live
+store, so a build that commits mid-export cannot produce a manifest describing
+a different corpus from the one inside it.
+
+An import trusts none of it until every check passes, in this order:
+
+1. **the container** — gzip, then ustar with regular files only. Links,
+   directories, pax headers and devices are refused by name, and decompression
+   is capped so a gzip bomb cannot exhaust memory.
+2. **the names** — exactly the three above. An absolute path, `..` or a nested
+   path is reported as what it is, a crafted archive, rather than as an unknown
+   entry. Entry names are never used as paths in any case.
+3. **the checksums** — every file's size and SHA-256 against the manifest.
+4. **the schema** — a layout this build reads. A newer archive format is an
+   incompatibility (exit 4), not corruption.
+5. **the config** — valid, naming the same corpus, and chunking text the way the
+   index was chunked, since otherwise the corpus could never be searched.
+6. **the database** — opened from a private copy, read-only, with
+   `trusted_schema` off. It must pass SQLite's `quick_check`, define no triggers
+   or views, and match the manifest's identity and counts field by field.
+
+Only then is anything written, and the install is one rename from a staging
+directory: a refusal or a crash leaves the workspace exactly as it was.
+
+**The checksums prove an archive arrived intact, not who made it.** They are
+written by whoever made the archive, so they catch corruption and tampering in
+transit, not a malicious author. Import archives from people you would take the
+documents themselves from; signing is on the roadmap.
+
+**The embedding model is not checked at import.** It is checked when the corpus
+is first searched, against whatever this machine is configured with — the only
+comparison that means anything.
+
+**An imported corpus keeps its source list.** Search and `read` work without
+the sources, since documents are stored in full. `update` fails with "source
+path does not exist" rather than deleting anything, until the sources exist
+here.
+
 ## `evaluation_report`
 
 Produced by `graphdog eval <dataset.json>`. CLI only: measuring retrieval is a
@@ -400,6 +486,7 @@ as `structuredContent` with `isError: true` for MCP:
 | `not_found` / `corpus_not_found` / `ref_not_found` | 3 | Does not exist |
 | `incompatible_corpus` | 4 | Identity mismatch; rebuild required |
 | `conflict` | 6 | Target already exists |
+| `archive_invalid` | 1 | An archive failed verification: corrupt, inconsistent or crafted |
 | `extraction_failed` | — | Per-file; collected into `failures` |
 | `error` | 1 | Unexpected |
 
@@ -428,6 +515,7 @@ Non-fatal, never swallowed, always in a `warnings` array:
 | `mixed_embeddings` | Corpora with different embedding models were searched together |
 | `eval_query_failed` | An evaluation query threw; it is scored as a miss |
 | `eval_unknown_ref` | The dataset judges a ref the corpus does not contain |
+| `corpus_shadowed` | An imported corpus shares its name with one that is found first |
 
 ## Stability
 

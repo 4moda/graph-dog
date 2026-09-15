@@ -17,10 +17,10 @@
   ],
   "summary": {
     "recall_at_k": 1,
-    "precision_at_k": 0.15,
-    "mrr": 0.577381,
-    "ndcg_at_k": 0.632205,
-    "evidence_accuracy": 0.714286,
-    "evidence_checked": 21
+    "precision_at_k": 0.16,
+    "mrr": 0.627778,
+    "ndcg_at_k": 0.657388,
+    "evidence_accuracy": 0.625,
+    "evidence_checked": 24
   }
 }

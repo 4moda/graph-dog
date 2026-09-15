@@ -11,6 +11,7 @@
  */
 
 import type {
+  ArchiveReportDto,
   BuildReportDto,
   CorpusInfoDto,
   CorpusListDto,
@@ -459,6 +460,73 @@ function renderDelta(delta: EvaluationDeltaDto | undefined, options: RenderOptio
 function rankOf(query: EvaluationReportDto["queries"][number]): number {
   if (query.error !== null) return -1;
   return query.metrics.reciprocal_rank ?? 1;
+}
+
+/**
+ * An export or import, as a short receipt.
+ *
+ * The checksum is always shown: it is what lets someone confirm the file they
+ * hand on, or the one they received, is the one this command wrote or checked.
+ */
+export function renderArchiveReport(
+  report: ArchiveReportDto,
+  options: RenderOptions = defaultRenderOptions(),
+): string {
+  const { manifest } = report;
+  const lines: string[] = [];
+
+  if (report.operation === "export") {
+    lines.push(
+      `${paint(options, "green", "exported")} ${paint(options, "bold", report.corpus)} to ${report.archive_path} ` +
+        paint(options, "dim", `(${formatBytes(report.bytes)})`),
+    );
+  } else {
+    const verb = report.destination?.replaced === true ? "replaced" : "imported";
+    const renamed = report.corpus === manifest.corpus ? "" : ` as ${paint(options, "bold", report.corpus)}`;
+    lines.push(
+      `${paint(options, "green", verb)} ${paint(options, "bold", manifest.corpus)}${renamed} from ${report.archive_path}`,
+    );
+    if (report.destination !== null) {
+      lines.push(`  into ${report.destination.path} ${paint(options, "dim", `(${report.destination.scope} workspace)`)}`);
+    }
+  }
+
+  lines.push(
+    `  ${manifest.counts.documents} document(s), ${manifest.counts.chunks} chunk(s), ` +
+      `${manifest.counts.nodes} node(s), ${manifest.counts.edges} edge(s)`,
+    `  built ${manifest.built_at} with ${manifest.identity.embedding_id}`,
+  );
+  if (manifest.sources.length > 0) {
+    const sources = manifest.sources.map((source) =>
+      source.revision === null ? source.id : `${source.id}@${source.revision.slice(0, 12)}`,
+    );
+    lines.push(`  sources ${sources.join(", ")}`);
+  }
+  lines.push(paint(options, "dim", `  sha256 ${report.checksum}`));
+
+  if (report.operation === "import") {
+    lines.push(
+      paint(options, "dim", `  verified: checksums, schema, database integrity, manifest against contents`),
+      "",
+      `Search it with: graphdog search "<query>" --corpus ${report.corpus}`,
+    );
+  }
+
+  lines.push(...renderWarnings(report.warnings, options));
+  return `${lines.join("\n")}\n`;
+}
+
+/** `20 KB`, `1.5 MB`: enough precision to recognise a file, no more. */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
 
 export function renderWarnings(

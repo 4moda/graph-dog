@@ -95,4 +95,61 @@ describe("infrastructure/persistence/sqlite/database", () => {
     assert.equal(second.prepare("SELECT a FROM t").get()?.["a"], "kept");
     second.close();
   });
+
+  describe("read-only", () => {
+    async function seeded(): Promise<string> {
+      const file = path();
+      const database = await openDatabase(file);
+      database.exec("CREATE TABLE t (a TEXT)");
+      database.prepare("INSERT INTO t (a) VALUES (?)").run("kept");
+      // Back to a rollback journal, as an exported snapshot is.
+      database.exec("PRAGMA journal_mode = DELETE");
+      database.close();
+      return file;
+    }
+
+    it("reads an existing database", async () => {
+      const database = await openDatabase(await seeded(), { readOnly: true });
+      assert.equal(database.prepare("SELECT a FROM t").get()?.["a"], "kept");
+      database.close();
+    });
+
+    it("refuses writes", async () => {
+      const database = await openDatabase(await seeded(), { readOnly: true });
+      assert.throws(() => database.exec("INSERT INTO t (a) VALUES ('no')"), /readonly/);
+      database.close();
+    });
+
+    it("turns off trusted_schema, since a read-only database may have come from elsewhere", async () => {
+      const database = await openDatabase(await seeded(), { readOnly: true });
+      assert.equal(Number(database.prepare("PRAGMA trusted_schema").get()?.["trusted_schema"]), 0);
+      database.close();
+    });
+
+    it("does not switch the file to WAL, which would itself be a write", async () => {
+      const database = await openDatabase(await seeded(), { readOnly: true });
+      assert.equal(database.prepare("PRAGMA journal_mode").get()?.["journal_mode"], "delete");
+      database.close();
+    });
+  });
+
+  it("reports a file it cannot open as the file's problem, not as a missing driver", async () => {
+    await assert.rejects(
+      () => openDatabase(path(), { readOnly: true }),
+      (error: unknown) => {
+        assert.doesNotMatch(String(error), /no SQLite driver/);
+        return true;
+      },
+    );
+  });
+
+  it("refuses a file that is not a database, without leaking the handle", async () => {
+    const { writeFile, rm } = await import("node:fs/promises");
+    const file = path();
+    await writeFile(file, "definitely not a database ".repeat(64));
+    await assert.rejects(() => openDatabase(file), /not a database/);
+    // Deleting succeeds only if the handle was closed; on Windows a leaked
+    // handle makes this throw.
+    await rm(file);
+  });
 });

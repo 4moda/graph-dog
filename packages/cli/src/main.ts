@@ -49,6 +49,7 @@ import { exploreSpec, runSearch, searchSpec } from "./application/commands/searc
 import { readSpec, runRead } from "./application/commands/read.ts";
 import { listSpec, runList, runStatus, statusSpec } from "./application/commands/status.ts";
 import { evalSpec, runEval } from "./application/commands/eval.ts";
+import { exportSpec, importSpec, runExport, runImport } from "./application/commands/archive.ts";
 
 type CommandHandler = (context: CommandContext) => Promise<CommandResult>;
 
@@ -68,6 +69,8 @@ const COMMANDS: readonly Command[] = [
   { spec: statusSpec, run: runStatus },
   { spec: listSpec, run: runList },
   { spec: evalSpec, run: runEval },
+  { spec: exportSpec, run: runExport },
+  { spec: importSpec, run: runImport },
 ];
 
 /**

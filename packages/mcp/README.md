@@ -47,7 +47,8 @@ skipped corpus never silently disappears from the answer.
 
 There is deliberately no evaluation tool. Measuring retrieval quality is a
 maintainer's job (`graphdog eval` in the CLI), not something an agent should
-trigger in the middle of a task.
+trigger in the middle of a task. Nor are there export or import tools: both write
+files at paths the caller chooses.
 
 ## Read-only by default
 

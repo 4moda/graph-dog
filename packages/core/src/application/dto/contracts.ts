@@ -18,9 +18,10 @@ import { CHUNKING_SCHEMA_VERSION, SCHEMA_VERSION } from "../../domain/model/corp
  * Shape of the response bodies. Bumped when an observable shape changes.
  *
  * 1.1 added `corpus` and `corpus_rank` to hits, `corpora` to search responses,
- * and the `evaluation_report` kind. All additive.
+ * and the `evaluation_report` kind. 1.2 emits `archive_report` for `export`
+ * and `import`, with `destination` and `manifest`. All additive.
  */
-export const CONTRACT_VERSION = "1.1";
+export const CONTRACT_VERSION = "1.2";
 
 export { CHUNKING_SCHEMA_VERSION, SCHEMA_VERSION };
 
@@ -234,13 +235,45 @@ export interface BuildReportDto extends ResponseEnvelope {
   readonly warnings: readonly WarningDto[];
 }
 
+/** What an archive says about the corpus inside it, as recorded when it was exported. */
+export interface ArchiveManifestDto {
+  readonly format_version: number;
+  /** The corpus's name in the archive, which an import with `--as` does not change. */
+  readonly corpus: string;
+  readonly created_at: string;
+  readonly created_by: string;
+  readonly built_at: string;
+  readonly identity: {
+    readonly schema_version: string;
+    readonly chunking_schema_version: string;
+    readonly embedding_id: string;
+    readonly chunking_fingerprint: string;
+  };
+  readonly counts: {
+    readonly documents: number;
+    readonly chunks: number;
+    readonly nodes: number;
+    readonly edges: number;
+  };
+  readonly sources: readonly { readonly id: string; readonly revision: string | null }[];
+}
+
 export interface ArchiveReportDto extends ResponseEnvelope {
   readonly kind: "archive_report";
   readonly operation: "export" | "import";
+  /** The corpus on this machine: the one exported, or the name it was imported as. */
   readonly corpus: string;
   readonly archive_path: string;
   readonly bytes: number;
+  /** Lowercase hex SHA-256 of the archive file, for checking a copy before import. */
   readonly checksum: string;
+  /** Where an import landed; null for an export. */
+  readonly destination: {
+    readonly path: string;
+    readonly scope: string;
+    readonly replaced: boolean;
+  } | null;
+  readonly manifest: ArchiveManifestDto;
   readonly warnings: readonly WarningDto[];
 }
 
@@ -364,6 +397,8 @@ export const WarningCode = {
   EVAL_QUERY_FAILED: "eval_query_failed",
   /** The dataset names a ref that is not in the corpus, so it can never be found. */
   EVAL_UNKNOWN_REF: "eval_unknown_ref",
+  /** An imported corpus shares its name with one that name resolution reaches first. */
+  CORPUS_SHADOWED: "corpus_shadowed",
 } as const;
 
 export type WarningCodeValue = (typeof WarningCode)[keyof typeof WarningCode];
