@@ -1,0 +1,14 @@
+{
+  "name": "allganize-ja",
+  "description": "Japanese public-sector PDFs with hand-written questions, each judged by the page that answers it.",
+  "gate": true,
+  "k": 3,
+  "corpus": {
+    "kind": "directory",
+    "source": "allganize",
+    "path": "eval/suites/allganize-ja/documents",
+    "lock": "documents.lock.json"
+  },
+  "dataset": "dataset.json",
+  "baseline": "baseline.json"
+}

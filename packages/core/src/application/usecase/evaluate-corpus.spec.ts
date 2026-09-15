@@ -364,3 +364,30 @@ describe("application/usecase/evaluateCorpus", () => {
     });
   });
 });
+
+describe("application/usecase/evaluateCorpus: page-level evidence", () => {
+  function onPage(page: number): InMemoryStore {
+    const store = new InMemoryStore();
+    store.addDocument({ ref: "docs/report.pdf", text: "Quarterly revenue grew by nine percent.", page });
+    store.addDocument({ ref: "docs/other.md", text: "Nothing about revenue here at all." });
+    return store;
+  }
+
+  const judgedOnPage3 = dataset({
+    queries: [
+      { id: "revenue", query: "quarterly revenue", judgments: [{ ref: "docs/report.pdf", grade: 1, page: 3 }], note: null },
+    ],
+  });
+
+  it("credits a hit on the page the judgment names", async () => {
+    const report = await evaluateCorpus({ dataset: judgedOnPage3 }, deps(onPage(3)));
+    assert.equal(report.summary.evidenceChecked, 1);
+    assert.equal(report.summary.evidenceAccuracy, 1);
+  });
+
+  it("does not credit the right document cited on the wrong page", async () => {
+    const report = await evaluateCorpus({ dataset: judgedOnPage3 }, deps(onPage(7)));
+    assert.equal(report.summary.recallAtK, 1, "the document was found");
+    assert.equal(report.summary.evidenceAccuracy, 0, "but the page does not check out");
+  });
+});

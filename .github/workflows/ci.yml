@@ -43,8 +43,10 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - name: Measure retrieval quality against the baseline
-        run: npm run eval -- --baseline eval/baseline.json
+      # The gating suite's documents are committed and checked against the
+      # SHA-256s in its lock on every run: nothing is downloaded.
+      - name: Measure retrieval quality against the baselines
+        run: npm run eval
 
   smoke:
     # Proves the published entry points actually work, not just the sources.
@@ -120,7 +122,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE"
           set +e
-          npm run eval --silent -- --fail-under precision=0.99 >/dev/null 2>&1
+          npm run eval --silent -- --suite graphdog-docs --fail-under precision=0.99 >/dev/null 2>&1
           code=$?
           set -e
           test "$code" -eq 8 || { echo "expected exit 8, got $code"; exit 1; }

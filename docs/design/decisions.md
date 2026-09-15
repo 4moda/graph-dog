@@ -185,6 +185,14 @@ per document took recall to 1.00 and nDCG@10 from 0.54 to 0.63.
 The rule that follows: a ranking change lands with a before-and-after from the
 harness, not with an argument.
 
+The gate itself then had to move. Measured on GraphDog's own docs, it moved
+whenever the docs did -- a doc edit once lowered MRR by 0.096 with no code
+change -- and the queries were written by the docs' own author. It now runs on
+`allganize-ja`: public PDFs and questions written by someone else, committed so
+that neither link rot nor a publisher's revision can change the corpus, and
+chosen by a stated rule that includes whether the publisher's terms allow the
+file to be redistributed at all.
+
 ### Chunking: locations are the product
 
 The predecessor sliced text with `content[:1500]` and recorded no positions, so
@@ -282,7 +290,7 @@ keeping secrets out of the tree.
 | Fusion | Reciprocal Rank Fusion |
 | Interfaces | CLI (canonical) · MCP · TypeScript API |
 | Cross-corpus merge | Rank-based (RRF), never score-based |
-| Quality gate | `npm run eval` against a checked-in baseline, CI-enforced |
+| Quality gate | `npm run eval`; CI gates on the `allganize-ja` suite (10 government PDFs, 54 external questions, judged by page) |
 | Artifact format | `.gdog` — gzip + ustar, per-file SHA-256 manifest, verified before install |
 | Distribution | Homebrew tap first (macOS, Linux, WSL), npm for Windows and CI; planned in [distribution.md](distribution.md) |
 | Code structure | Left to code-graph tools such as code-review-graph; an optional adapter at most |

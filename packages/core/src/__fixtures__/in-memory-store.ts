@@ -246,6 +246,8 @@ export class InMemoryStore implements CorpusStore {
     links?: string[];
     revision?: string | null;
     vectorsByChunk?: Record<string, number[]>;
+    /** Put every chunk on this page, as if the document were a PDF. */
+    page?: number;
   }): Chunk[] {
     const [sourceId = "src"] = input.ref.split("/");
     this.documents.upsert({
@@ -280,6 +282,7 @@ export class InMemoryStore implements CorpusStore {
           endLine: ordinal + 1,
           startChar: 0,
           endChar: body.length,
+          ...(input.page === undefined ? {} : { page: input.page }),
         }),
         headingPath: "",
         tokenCount,

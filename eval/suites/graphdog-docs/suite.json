@@ -1,0 +1,8 @@
+{
+  "name": "graphdog-docs",
+  "description": "GraphDog's own design docs, judged by hand. A report, not a gate: editing the docs moves these numbers.",
+  "gate": false,
+  "corpus": { "kind": "directory", "source": "docs", "path": "docs" },
+  "dataset": "dataset.json",
+  "baseline": "baseline.json"
+}

@@ -17,7 +17,8 @@
  *       "query": "how are signing keys rotated",
  *       "relevant": [
  *         { "ref": "docs/keys.md", "grade": 3, "lines": "12-28" },
- *         { "ref": "docs/token.md" }
+ *         { "ref": "docs/token.md" },
+ *         { "ref": "reports/annual.pdf", "page": 4 }
  *       ]
  *     }
  *   ]
@@ -151,8 +152,18 @@ function parseJudgments(input: unknown, where: string, path: string): Judgment[]
     }
 
     const lines = parseLineRange(judgment["lines"], `${at}.lines`, path);
-    return { ref, grade, ...lines };
+    const page = parsePage(judgment["page"], `${at}.page`, path);
+    return { ref, grade, ...lines, ...page };
   });
+}
+
+/** An expected page for a paginated source such as a PDF: a whole number from 1. */
+function parsePage(input: unknown, where: string, path: string): { page?: number } {
+  if (input === undefined || input === null) return {};
+  if (typeof input !== "number" || !Number.isInteger(input) || input < 1) {
+    throw new ConfigError(`${where} must be a page number, 1 or greater`, { path });
+  }
+  return { page: input };
 }
 
 /** Parse `"12-28"`, `"12"`, or `[12, 28]` into an expected evidence span. */

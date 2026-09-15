@@ -445,7 +445,8 @@ judges:
       "note": "paraphrase: the docs never say 'rotate'",
       "relevant": [
         { "ref": "docs/keys.md", "grade": 3, "lines": "12-28" },
-        "docs/token.md"
+        "docs/token.md",
+        { "ref": "reports/annual.pdf", "page": 4 }
       ]
     }
   ]
@@ -457,6 +458,12 @@ bare string is shorthand for `{ "ref": …, "grade": 1 }`. `lines` accepts
 `"12-28"`, `"12"`, `12` or `[12, 28]`, and is matched by **overlap**: chunk
 boundaries move when chunking parameters change, and demanding an exact match
 would measure the chunker rather than the retrieval.
+
+`page` pins the page for a paginated source such as a PDF, where GraphDog's line
+numbers count from the top of each page. A citation is correct only on that
+page -- and, when `lines` is given as well, on those lines within it -- so
+finding the right PDF but citing the wrong page counts as a citation that does
+not check out. The gating suite judges every question this way.
 
 Validation is strict and names the exact entry (`queries[1].relevant[0].ref`). A
 dataset is the yardstick every later measurement is compared against, so a

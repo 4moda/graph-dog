@@ -222,6 +222,27 @@ describe("domain/service/metrics", () => {
   });
 
   describe("evidenceAccuracy", () => {
+    it("checks a page-only judgment by page, the way a PDF citation is judged", () => {
+      const index = indexJudgments([{ ref: "report.pdf", grade: 1, page: 4 }]);
+      const right = evidenceAccuracy([{ ref: "report.pdf", startLine: 1, endLine: 9, page: 4 }], index, 5);
+      const wrong = evidenceAccuracy([{ ref: "report.pdf", startLine: 1, endLine: 9, page: 5 }], index, 5);
+      assert.deepEqual(right, { checked: 1, correct: 1, accuracy: 1 });
+      assert.deepEqual(wrong, { checked: 1, correct: 0, accuracy: 0 });
+    });
+
+    it("counts a hit without a page as missing a judgment that pins one", () => {
+      const index = indexJudgments([{ ref: "report.pdf", grade: 1, page: 4 }]);
+      assert.equal(evidenceAccuracy([{ ref: "report.pdf", startLine: 1, endLine: 9 }], index, 5).correct, 0);
+    });
+
+    it("requires both the page and the lines when a judgment pins both", () => {
+      const index = indexJudgments([{ ref: "report.pdf", grade: 1, page: 4, startLine: 10, endLine: 20 }]);
+      const onPageOffLines = evidenceAccuracy([{ ref: "report.pdf", startLine: 30, endLine: 40, page: 4 }], index, 5);
+      const both = evidenceAccuracy([{ ref: "report.pdf", startLine: 15, endLine: 25, page: 4 }], index, 5);
+      assert.equal(onPageOffLines.correct, 0);
+      assert.equal(both.correct, 1);
+    });
+
     it("can fall when recall rises, because it is conditional on retrieval", () => {
       // A documented property, not a defect: finding a document for the first
       // time brings its span under test. Anyone gating on this number needs to

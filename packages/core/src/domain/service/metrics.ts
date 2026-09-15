@@ -31,6 +31,11 @@ export interface Judgment {
   /** Expected evidence span, when the dataset pins one. */
   readonly startLine?: number;
   readonly endLine?: number;
+  /**
+   * Expected page, for paginated sources such as PDF. When lines are pinned as
+   * well they are read as lines within this page, as GraphDog reports them.
+   */
+  readonly page?: number;
 }
 
 /** One retrieved result, reduced to what the metrics need. */
@@ -38,6 +43,8 @@ export interface RetrievedItem {
   readonly ref: string;
   readonly startLine: number;
   readonly endLine: number;
+  /** The page the chunk is on; null or absent for unpaginated sources. */
+  readonly page?: number | null;
 }
 
 /** Judgments keyed by ref, for O(1) lookup during scoring. */
@@ -196,7 +203,7 @@ export function spansOverlap(
 }
 
 export interface EvidenceAccuracy {
-  /** Judgments that pinned an expected span and whose document was retrieved. */
+  /** Judgments that pinned an expected span or page and whose document was retrieved. */
   readonly checked: number;
   /** Of those, how many landed on the right lines. */
   readonly correct: number;
@@ -229,11 +236,17 @@ export function evidenceAccuracy(
   for (const item of top) {
     const judgment = judgments.get(item.ref);
     if (judgment === undefined || judgment.grade <= 0) continue;
-    if (judgment.startLine === undefined || judgment.endLine === undefined) continue;
+    const pinsLines = judgment.startLine !== undefined && judgment.endLine !== undefined;
+    const pinsPage = judgment.page !== undefined;
+    if (!pinsLines && !pinsPage) continue;
     checked += 1;
-    if (spansOverlap(item, { startLine: judgment.startLine, endLine: judgment.endLine })) {
-      correct += 1;
-    }
+    // A citation is right only if it lands where every pinned coordinate says:
+    // the right page of a PDF, and the right lines when those are pinned too.
+    const onPage = !pinsPage || item.page === judgment.page;
+    const onLines =
+      !pinsLines ||
+      spansOverlap(item, { startLine: judgment.startLine as number, endLine: judgment.endLine as number });
+    if (onPage && onLines) correct += 1;
   }
 
   return { checked, correct, accuracy: checked === 0 ? null : correct / checked };

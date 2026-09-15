@@ -19,9 +19,14 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "peerDependencies": {
-    "@huggingface/transformers": "^4.2.0"
+    "@huggingface/transformers": "^4.2.0",
+    "pdfjs-dist": "^6.3.0"
   },
   "peerDependenciesMeta": {
-    "@huggingface/transformers": { "optional": true }
+    "@huggingface/transformers": { "optional": true },
+    "pdfjs-dist": { "optional": true }
+  },
+  "devDependencies": {
+    "pdfjs-dist": "6.3.289"
   }
 }
