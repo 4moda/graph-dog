@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "The scores GraphDog's own docs achieved when last recorded. This suite reports; it does",
+    "not gate, because the corpus is the docs themselves and editing them moves these numbers.",
+    "The gate is the allganize-ja suite. Re-record with:",
+    "  npm run eval -- --suite graphdog-docs --record"
+  ],
+  "summary": {
+    "recall_at_k": 1,
+    "precision_at_k": 0.16,
+    "mrr": 0.554444,
+    "ndcg_at_k": 0.632848,
+    "evidence_accuracy": 0.666667,
+    "evidence_checked": 24
+  }
+}

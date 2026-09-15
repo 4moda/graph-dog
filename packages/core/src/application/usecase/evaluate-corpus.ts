@@ -195,11 +195,14 @@ function missedRefs(judgments: readonly Judgment[], found: ReadonlySet<string>):
 }
 
 /** Reduce hits to what the metrics need: a ref and the lines it cites. */
-function toRetrieved(hits: readonly { ref: string; location: { startLine: number; endLine: number } }[]): RetrievedItem[] {
+function toRetrieved(
+  hits: readonly { ref: string; location: { startLine: number; endLine: number; page: number | null } }[],
+): RetrievedItem[] {
   return hits.map((hit) => ({
     ref: hit.ref,
     startLine: hit.location.startLine,
     endLine: hit.location.endLine,
+    page: hit.location.page,
   }));
 }
 

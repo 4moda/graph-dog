@@ -11,7 +11,8 @@
  */
 
 import { stat } from "node:fs/promises";
-import { basename } from "node:path";
+import { createRequire } from "node:module";
+import { basename, dirname, join, sep } from "node:path";
 
 import { ExtractionError } from "../../domain/errors.ts";
 import { sanitize, normalizeNewlines } from "../../domain/service/markdown.ts";
@@ -85,13 +86,54 @@ interface PdfPage {
 interface PdfDocument {
   numPages: number;
   getPage(index: number): Promise<PdfPage>;
+}
+
+/**
+ * What `getDocument` returns. Teardown belongs to this task, not to the
+ * document: pdfjs-dist 6 removed `PDFDocumentProxy.destroy()`, and calling it
+ * made every PDF fail to extract.
+ */
+interface PdfLoadingTask {
+  promise: Promise<PdfDocument>;
   destroy(): Promise<void>;
 }
 
+interface PdfOpenOptions {
+  data: Uint8Array;
+  useSystemFonts?: boolean;
+  cMapUrl?: string;
+  cMapPacked?: boolean;
+  standardFontDataUrl?: string;
+  verbosity?: number;
+}
+
 interface PdfJsModule {
-  getDocument(options: { data: Uint8Array; useSystemFonts?: boolean }): {
-    promise: Promise<PdfDocument>;
-  };
+  getDocument(options: PdfOpenOptions): PdfLoadingTask;
+}
+
+/** pdf.js's `VerbosityLevel.ERRORS`: warnings would go to stdout and corrupt `--json`. */
+const PDFJS_ERRORS_ONLY = 0;
+
+/**
+ * Where pdfjs-dist keeps its character maps and standard font data.
+ *
+ * Without the character maps, text in CID-keyed fonts -- which is how most
+ * Japanese PDFs are set -- cannot be mapped back to Unicode, and pages come
+ * out empty or garbled. Resolved from the same place the module is imported
+ * from, so the data always matches the code; if it cannot be found, extraction
+ * still runs, as it did before, rather than failing outright.
+ */
+function pdfjsResources(): Pick<PdfOpenOptions, "cMapUrl" | "cMapPacked" | "standardFontDataUrl"> {
+  try {
+    const root = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
+    return {
+      cMapUrl: `${join(root, "cmaps")}${sep}`,
+      cMapPacked: true,
+      standardFontDataUrl: `${join(root, "standard_fonts")}${sep}`,
+    };
+  } catch {
+    return {};
+  }
 }
 
 export class PdfExtractor implements ContentExtractor {
@@ -114,10 +156,17 @@ export class PdfExtractor implements ContentExtractor {
     const { readFile } = await import("node:fs/promises");
     const data = new Uint8Array(await readFile(absolutePath));
 
+    const task = pdfjs.getDocument({
+      data,
+      useSystemFonts: true,
+      verbosity: PDFJS_ERRORS_ONLY,
+      ...pdfjsResources(),
+    });
     let document;
     try {
-      document = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
+      document = await task.promise;
     } catch (error) {
+      await task.destroy().catch(() => undefined);
       throw new ExtractionError(`cannot open PDF: ${String(error)}`, { path: absolutePath });
     }
 
@@ -139,7 +188,7 @@ export class PdfExtractor implements ContentExtractor {
         pages.push(text);
       }
     } finally {
-      await document.destroy();
+      await task.destroy();
     }
 
     const notes: string[] = [];

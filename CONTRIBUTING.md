@@ -7,7 +7,7 @@ npm install          # installs all three workspaces
 npm test             # runs every spec
 npm run typecheck    # strict TypeScript across the monorepo
 npm run build        # compiles all packages
-npm run eval         # measures retrieval against the built-in dataset
+npm run eval         # runs the evaluation suites; fetches the gating suite's PDFs once
 ```
 
 Node 22.18 or newer. Tests run directly on TypeScript source via Node's native
@@ -101,9 +101,10 @@ discussion, not just a passing test:
    dependencies need a strong justification; optional capabilities go behind
    optional peer dependencies.
 7. **Ranking changes are measured, not argued.** A change to retrieval,
-   chunking, fusion or the graph lands with a before-and-after from `npm run
-   eval`. If it improves the numbers, raise `eval/baseline.json` in the same
-   commit; if it lowers one, say so in the message and explain what it buys.
+   chunking, fusion, extraction or the graph lands with a before-and-after from
+   `npm run eval`. If it improves the gating suite, re-record its baseline in the
+   same commit (`npm run eval -- --suite allganize-ja --record`); if it lowers a
+   number, say so in the message and explain what it buys.
 
 ## Adding things
 
@@ -122,10 +123,17 @@ Declare an honest `minUsefulSimilarity`.
 `docs/design/contract.md`, and add a spec. Additions are fine; removals and
 semantic changes bump `contract_version`.
 
-**An evaluation query** — add it to `eval/graphdog-docs.json` and re-record
-`eval/baseline.json` in the same commit, since adding a query moves every
-aggregate. Judge whole sections rather than exact passages: chunk boundaries
-move, and the metric should measure retrieval, not the chunker.
+**An evaluation suite** -- a directory under `eval/suites/` with a `suite.json`
+naming its corpus, dataset and baseline. A corpus is a directory of this
+repository or files pinned by SHA-256 in a lock and fetched by the runner.
+Choose documents by a stated rule, never by how well GraphDog does on them, and
+record the baseline in the same commit. `eval/suites/allganize-ja/README.md` is
+the worked example.
+
+**An evaluation query** -- a query added to a suite's `dataset.json` moves every
+aggregate, so re-record that suite's baseline in the same commit. Judge whole
+sections rather than exact passages: chunk boundaries move, and the metric
+should measure retrieval, not the chunker. For PDFs, judge the page.
 
 **A metric** — the pure function goes in `domain/service/metrics.ts` with worked
 examples in its spec. `null` means *unmeasurable*, never *zero*: a fabricated

@@ -77,7 +77,7 @@ class Graphdog < Formula
   def caveats
     <<~EOS
       Connect GraphDog to an agent:
-        graphdog install claude-code --project
+        graphdog install --platform claude --project
       Before `brew uninstall graphdog`, run `graphdog uninstall`:
       Homebrew removes only what it installed itself.
     EOS
@@ -121,19 +121,32 @@ instruction files, hooks and data are GraphDog's to remove, which is why
 
 ## Lifecycle commands
 
-### `graphdog install <agent> [--project]`
+### `graphdog install --platform <name> [--project]`
 
-Connects GraphDog to an agent: registers the MCP server and adds a short
-instruction block telling the agent to search before it reads. First targets:
-Claude Code, Codex, Cursor and Gemini CLI.
+Connects GraphDog to an agent: registers the MCP server and adds short
+instructions telling the agent to search before it reads. One command per
+platform, as with Graphify, but as a flag rather than a subcommand per platform.
+The first three:
+
+| Platform | `--platform` | MCP registration | Instructions |
+|---|---|---|---|
+| Claude Code | `claude` | `.mcp.json` in the project; the user's configuration otherwise | a marker-delimited block in `CLAUDE.md` |
+| GitHub Copilot | `copilot` | to be confirmed: VS Code's `.vscode/mcp.json`, Copilot CLI's configuration, or both | its own file, `.github/instructions/graphdog.instructions.md` |
+| Kiro | `kiro` | `.kiro/settings/mcp.json` in the project; the user's Kiro settings otherwise | its own file, `.kiro/steering/graphdog.md` |
+
+These are the locations code-review-graph already writes to in this repository,
+which is the evidence they are right; the Copilot MCP target is the one still to
+check.
 
 - **User scope** by default, in the agent's own configuration. **Project scope**
   with `--project`: files in the repository -- for Claude Code, `.mcp.json` and
   `CLAUDE.md` -- meant to be committed so the whole team gets the same setup.
-- **Instruction blocks are marker-delimited** (`<!-- graphdog -->` …
-  `<!-- /graphdog -->`) and carry the version that wrote them. They share files
-  with other tools' blocks -- code-review-graph writes its own into the same
-  `CLAUDE.md` and `AGENTS.md` -- and never touch anything outside their markers.
+- **Its own file wherever the platform reads several** (Copilot, Kiro), so
+  uninstalling is deleting that file. Where the platform reads one shared file
+  (`CLAUDE.md`), a **marker-delimited block** (`<!-- graphdog -->` …
+  `<!-- /graphdog -->`) that coexists with other tools' blocks --
+  code-review-graph has its own in the same file -- and never touches anything
+  outside its markers. Both carry the version that wrote them.
 - **The MCP registration runs `graphdog mcp`** from `PATH`, not a Homebrew
   Cellar path, so it survives upgrades, and not `npx`, so it never downloads.
 - **Read-only by default.** `--allow-write` stays an explicit choice at install
@@ -141,15 +154,16 @@ Claude Code, Codex, Cursor and Gemini CLI.
 - **Steer, never block.** No hook that stops an agent reading a file.
 - `--dry-run` shows every file and key it would write.
 
-### `graphdog uninstall [<agent>] [--project] [--purge]`
+### `graphdog uninstall [--platform <name>] [--project] [--purge]`
 
 Takes back what `install` wrote.
 
 - Every write is recorded in a ledger, `~/.graphdog/installed.json`: file, key or
   marker, agent, scope, and the version that wrote it. Uninstall removes exactly
   those.
-- Because blocks are marker-delimited, a project-scope integration can also be
-  removed from a clone the ledger has never seen -- a teammate's checkout.
+- Because GraphDog's files have fixed names and its blocks have markers, a
+  project-scope integration can also be removed from a clone the ledger has
+  never seen -- a teammate's checkout.
 - A file GraphDog created and that is empty afterwards is deleted; a file it only
   added to is left otherwise untouched.
 - `--purge` additionally deletes GraphDog's own data after listing it with sizes
@@ -168,9 +182,9 @@ One report of everything installed and anything wrong:
 graphdog 0.2.0 (homebrew), node 24.x
 home        ~/.graphdog: 3 corpora, 120 MB
 extras      semantic (@huggingface/transformers 4.2.0), models 450 MB
-agents      claude-code  project /repo  mcp ok  instructions ok (0.2.0)
-            codex        user           instructions written by 0.1.0
-                         -> graphdog install codex --refresh
+agents      claude   project /repo  mcp ok  instructions ok (0.2.0)
+            kiro     project /repo  mcp ok  steering written by 0.1.0
+                     -> graphdog install --platform kiro --refresh
 hooks       /repo post-commit ok
 corpora     docs: schema 2 needed, built with 1 -> graphdog build --full --corpus docs
 ```
@@ -193,8 +207,8 @@ optional modules are resolved from there. Downloaded models move to
 | What | Where | Removed by |
 |---|---|---|
 | CLI and MCP server | Homebrew prefix, or npm's global directory | `brew uninstall` / `npm uninstall -g` |
-| Agent registrations | `.mcp.json` and each agent's own config | `graphdog uninstall` |
-| Instruction blocks | `CLAUDE.md`, `AGENTS.md`, … between GraphDog's markers | `graphdog uninstall` |
+| MCP registrations | `.mcp.json`, `.kiro/settings/mcp.json`, Copilot's MCP configuration | `graphdog uninstall` |
+| Instructions | GraphDog's own files (`.github/instructions/graphdog.instructions.md`, `.kiro/steering/graphdog.md`) and its block in `CLAUDE.md` | `graphdog uninstall` |
 | Git hooks, when that lands | `.git/hooks/*`, marker-delimited | `graphdog uninstall` |
 | Ledger | `~/.graphdog/installed.json` | `graphdog uninstall`, last |
 | Home corpora, imported archives included | `~/.graphdog/corpora/` | `graphdog uninstall --purge` |
@@ -212,7 +226,7 @@ optional modules are resolved from there. Downloaded models move to
 brew install 4moda/graphdog/graphdog
 cd your-project
 graphdog init docs --source ./docs && graphdog build
-graphdog install claude-code --project
+graphdog install --platform claude --project
 graphdog doctor
 ```
 
@@ -235,9 +249,15 @@ brew uninstall graphdog
 brew untap 4moda/graphdog        # if nothing else comes from the tap
 ```
 
+## Decided
+
+- the tap is `4moda/homebrew-graphdog`
+- the first platforms are Claude Code, GitHub Copilot and Kiro
+- integration is a CLI command, `graphdog install --platform <name>`
+
 ## Open decisions
 
-- the tap's name: `4moda/homebrew-graphdog`, or a general `4moda/homebrew-tap`
-- which agents come first, beyond Claude Code
+- where Copilot's MCP registration goes: VS Code's `.vscode/mcp.json`, Copilot
+  CLI's configuration, or both
 - whether `graphdog mcp` replaces the separate `graphdog-mcp` binary or sits
   beside it

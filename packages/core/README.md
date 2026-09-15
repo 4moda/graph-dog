@@ -99,7 +99,7 @@ See [the contract](https://github.com/4moda/graph-dog/blob/main/docs/design/cont
 | Feature | Install |
 |---|---|
 | Semantic embeddings, cross-encoder reranking | `npm install @huggingface/transformers` |
-| PDF extraction | `npm install pdfjs-dist` |
+| PDF extraction | `npm install pdfjs-dist` (6.x) |
 | DOCX extraction | `npm install mammoth` |
 
 Without them the default lexical embedder is used, and files needing a missing

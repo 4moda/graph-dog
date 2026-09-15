@@ -159,9 +159,19 @@ and the exact lines. `eval` runs them through the real search pipeline and
 reports Recall@K, Precision@K, MRR, nDCG@K, evidence-line accuracy and latency
 percentiles, then exits **8** if a threshold or a baseline was breached.
 
-GraphDog ships a dataset over its own design docs; `npm run eval` runs it and CI
-gates on it. The first thing it found was a real ranking defect — see
-[the roadmap](docs/design/roadmap.md).
+`npm run eval` runs GraphDog's own suites, and CI gates on one: `allganize-ja`,
+ten Japanese government PDFs committed with their SHA-256s, and 54 questions
+written by someone other than GraphDog's authors, each judged by the page that
+answers it. Results break down by domain and by whether the answer sits in a
+paragraph, a table or an image.
+
+```console
+npm run eval                                   # every suite; the gate against its baseline
+npm run eval -- --suite allganize-ja --record  # after a change that should move it
+```
+
+Building that suite found two real PDF bugs, and earlier suites found a ranking
+defect — see [the roadmap](docs/design/roadmap.md).
 
 ### Moving a corpus
 
@@ -225,7 +235,9 @@ pass as success.
 ## What gets indexed
 
 Markdown, plain text, and source code by default; PDF and DOCX with optional
-extras. Skipped, and **recorded with a reason** so the gap is auditable:
+extras (`pdfjs-dist` 6 for PDF, `mammoth` for DOCX). PDF citations carry the page,
+and Japanese PDFs set in CID fonts are read through pdf.js's character maps --
+without them such pages come out empty. Skipped, and **recorded with a reason** so the gap is auditable:
 
 - files matching secret patterns (`.env`, `*.pem`, `*credentials*`, …) — opt in with `indexSecrets`
 - files over the size limit, empty files, unreadable files

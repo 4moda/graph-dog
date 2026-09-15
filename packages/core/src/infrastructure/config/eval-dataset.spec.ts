@@ -196,3 +196,39 @@ describe("infrastructure/config/evalDataset", () => {
     });
   });
 });
+
+describe("infrastructure/config/eval-dataset: pages", () => {
+  const withJudgment = (judgment: unknown) => ({
+    version: 1,
+    name: "pages",
+    queries: [{ id: "q", query: "annual report", relevant: [judgment] }],
+  });
+
+  it("reads the page a judgment expects, for paginated sources", () => {
+    const dataset = parseEvalDataset(withJudgment({ ref: "reports/annual.pdf", page: 4 }));
+    assert.equal(dataset.queries[0]?.judgments[0]?.page, 4);
+  });
+
+  it("reads a page together with lines within it", () => {
+    const judgment = parseEvalDataset(withJudgment({ ref: "a.pdf", page: 2, lines: "5-9" })).queries[0]?.judgments[0];
+    assert.equal(judgment?.page, 2);
+    assert.equal(judgment?.startLine, 5);
+  });
+
+  it("leaves the page out when a judgment does not give one", () => {
+    assert.equal(parseEvalDataset(withJudgment({ ref: "a.md" })).queries[0]?.judgments[0]?.page, undefined);
+  });
+
+  for (const bad of [0, -1, 1.5, "4"]) {
+    it(`refuses ${JSON.stringify(bad)} as a page, naming the field`, () => {
+      assert.throws(
+        () => parseEvalDataset(withJudgment({ ref: "a.pdf", page: bad })),
+        (error: unknown) => {
+          assert.ok(error instanceof ConfigError);
+          assert.match(error.message, /relevant\[0\]\.page must be a page number/);
+          return true;
+        },
+      );
+    });
+  }
+});

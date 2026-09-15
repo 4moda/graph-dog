@@ -1,0 +1,10 @@
+{
+  "summary": {
+    "recall_at_k": 0.981481,
+    "precision_at_k": 0.32716,
+    "mrr": 0.808642,
+    "ndcg_at_k": 0.853609,
+    "evidence_accuracy": 0.792453,
+    "evidence_checked": 53
+  }
+}

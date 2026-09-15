@@ -1,0 +1,656 @@
+{
+  "version": 1,
+  "name": "allganize-ja",
+  "corpus": "allganize-ja",
+  "description": "Questions from allganize/RAG-Evaluation-Dataset-JA (MIT, Allganize) at revision c3a756711f10, about 10 of its 65 documents. Each question is judged by the page that answers it. Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph, a table or an image.",
+  "queries": [
+    {
+      "id": "aj-006",
+      "query": "令和6年の景気動向に関する見通しについて、大企業非製造業の前回調査、現状判断、今後の見通しについてそれぞれ具体的な数値を上げ、上昇や下降の傾向を教えてください。",
+      "note": "finance · table",
+      "relevant": [
+        {
+          "ref": "allganize/finance/1c202401.pdf",
+          "grade": 1,
+          "page": 1
+        }
+      ]
+    },
+    {
+      "id": "aj-007",
+      "query": "法人企業景気予測調査（令和６年４～６月期調査）の景況判断BSIについて、化学工業は前回調査からどの程度上昇しましたか？",
+      "note": "finance · image",
+      "relevant": [
+        {
+          "ref": "allganize/finance/1c202401.pdf",
+          "grade": 1,
+          "page": 1
+        }
+      ]
+    },
+    {
+      "id": "aj-008",
+      "query": "令和6年4~6月期の国内の景況判断BSIにおいて、中堅企業と中小企業の差異について、見通しと現状の両方から具体的に説明してください。",
+      "note": "finance · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/finance/1c202401.pdf",
+          "grade": 1,
+          "page": 2
+        }
+      ]
+    },
+    {
+      "id": "aj-009",
+      "query": "令和6年度通期において、売上高と経常利益の両方が共に前年同期比で増加した業種と、それらの増減率の詳細を挙げてください。また、その中で最も増加率が高い業種はどれでしょうか？",
+      "note": "finance · image",
+      "relevant": [
+        {
+          "ref": "allganize/finance/1c202401.pdf",
+          "grade": 1,
+          "page": 3
+        }
+      ]
+    },
+    {
+      "id": "aj-010",
+      "query": "大企業と中小企業の設備投資の目的について、「維持更新」と「生産能力の拡大」に対する優先度に違いはありますか？",
+      "note": "finance · table",
+      "relevant": [
+        {
+          "ref": "allganize/finance/1c202401.pdf",
+          "grade": 1,
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-001",
+      "query": "火災保険の収益悪化に対し、損害保険各社はどのような収益改善策を講じているか、具体的な例を挙げて説明してください。さらに、これらの改善策がどのように保険引受利益に影響を与えたかについても教えてください。",
+      "note": "finance · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/finance/01.pdf",
+          "grade": 1,
+          "page": 4
+        }
+      ]
+    },
+    {
+      "id": "aj-002",
+      "query": "2017年度から2021年度までのどの年が最も自然災害の保険金支払額が高かったか？また、その理由についても説明しなさい。",
+      "note": "finance · image",
+      "relevant": [
+        {
+          "ref": "allganize/finance/01.pdf",
+          "grade": 1,
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-003",
+      "query": "主要生保のソルベンシー・マージン比率の推移を考慮すると、令和5年3月期の比率が令和3年3月期と比べてどのような変動を示しているか。",
+      "note": "finance · image",
+      "relevant": [
+        {
+          "ref": "allganize/finance/01.pdf",
+          "grade": 1,
+          "page": 6
+        }
+      ]
+    },
+    {
+      "id": "aj-004",
+      "query": "生命保険協会や金融庁は保険代理店の業務品質評価運営に対してどのような具体的な取組みや対策を講じているのか、またその背景にはどのような課題や目的があるのか説明してください。",
+      "note": "finance · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/finance/01.pdf",
+          "grade": 1,
+          "page": 8
+        }
+      ]
+    },
+    {
+      "id": "aj-005",
+      "query": "外貨建保険の販売による苦情件数および苦情発生率の変動傾向について教えてください。また、外貨建保険の苦情の背景も合わせて示してください。",
+      "note": "finance · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/finance/01.pdf",
+          "grade": 1,
+          "page": 10
+        }
+      ]
+    },
+    {
+      "id": "aj-068",
+      "query": "通信インフラの高度化とデータ流通がどのように発展してきたのか、これまでの技術の高度化の歴史や特徴について説明してください。",
+      "note": "it · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/it/01point.pdf",
+          "grade": 1,
+          "page": 2
+        }
+      ]
+    },
+    {
+      "id": "aj-069",
+      "query": "日本企業のパーソナルデータ活用率について、諸外国と比べてどのような傾向があるか。",
+      "note": "it · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/it/01point.pdf",
+          "grade": 1,
+          "page": 3
+        }
+      ]
+    },
+    {
+      "id": "aj-070",
+      "query": "パーソナルデータの提供時にユーザがどのようなことを重視しているか、日本と米国の違いについて説明してください。",
+      "note": "it · image",
+      "relevant": [
+        {
+          "ref": "allganize/it/01point.pdf",
+          "grade": 1,
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-071",
+      "query": "ファクトチェックに対する日本の認知度はどの程度か。アメリカや韓国との比較についても説明してください。",
+      "note": "it · image",
+      "relevant": [
+        {
+          "ref": "allganize/it/01point.pdf",
+          "grade": 1,
+          "page": 7
+        }
+      ]
+    },
+    {
+      "id": "aj-072",
+      "query": "スマートフォンの個人保有率、5Gに対応したスマートフォンの出荷台数、5Gの人工カバー率はどれくらいか。それぞれ具体的な数値や変化率などについて教えてください。",
+      "note": "it · table",
+      "relevant": [
+        {
+          "ref": "allganize/it/01point.pdf",
+          "grade": 1,
+          "page": 10
+        }
+      ]
+    },
+    {
+      "id": "aj-073",
+      "query": "デジタル田園都市国家構想の推進において、光ファイバや5Gなどのデジタル基盤の整備の具体的な目標および関連する取組について詳細に説明してください。",
+      "note": "it · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/it/01point.pdf",
+          "grade": 1,
+          "page": 11
+        }
+      ]
+    },
+    {
+      "id": "aj-080",
+      "query": "スプリントレトロスペクティブとスプリントレビューの違いを教えてください。",
+      "note": "it · image",
+      "relevant": [
+        {
+          "ref": "allganize/it/20220422_resources_standard_guidelines_guidebook_01.pdf",
+          "grade": 1,
+          "page": 8
+        }
+      ]
+    },
+    {
+      "id": "aj-081",
+      "query": "デイリースクラム、スプリントレビュー、およびスプリント・レトロスペクティブの各ミーティングの目的と、これらがスプリントの成果にどのように影響するかを具体的に説明してください。",
+      "note": "it · table",
+      "relevant": [
+        {
+          "ref": "allganize/it/20220422_resources_standard_guidelines_guidebook_01.pdf",
+          "grade": 1,
+          "page": 8
+        }
+      ]
+    },
+    {
+      "id": "aj-082",
+      "query": "発注者がアジャイル開発を採用する際の姿勢について、具体的にどのような準備と努力が必要か教えてください。また、準備が不十分な場合にどのようにプロジェクトの成功確率が下がるかについても詳しく説明してください。",
+      "note": "it · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/it/20220422_resources_standard_guidelines_guidebook_01.pdf",
+          "grade": 1,
+          "page": 18
+        }
+      ]
+    },
+    {
+      "id": "aj-083",
+      "query": "スクラムマスターがプロジェクトマネージャー（PM）と混同されることによるプロジェクト進行の混乱を避けるためには、どのような対策が考えられますか？ また、その理由を述べてください。",
+      "note": "it · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/it/20220422_resources_standard_guidelines_guidebook_01.pdf",
+          "grade": 1,
+          "page": 23
+        }
+      ]
+    },
+    {
+      "id": "aj-084",
+      "query": "アジャイル開発において、プロダクトバックログとWBSの違いを説明し、それぞれのアプローチについて説明してください",
+      "note": "it · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/it/20220422_resources_standard_guidelines_guidebook_01.pdf",
+          "grade": 1,
+          "page": 26
+        }
+      ]
+    },
+    {
+      "id": "aj-130",
+      "query": "げっ歯類を用いた長期がん原性試験で使用する動物種については、どのような事項を考慮する必要があるか。また、動物の数や年齢など推奨されている条件も示してください。",
+      "note": "manufacturing · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000251332.pdf",
+          "grade": 1,
+          "page": 9
+        }
+      ]
+    },
+    {
+      "id": "aj-131",
+      "query": "遺伝毒性試験について追加の実施が求められるのは、どのような場合か。追加試験の方法についても具体的に説明しなさい。",
+      "note": "manufacturing · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000251332.pdf",
+          "grade": 1,
+          "page": 14
+        }
+      ]
+    },
+    {
+      "id": "aj-132",
+      "query": "日本と米国ではがん原性試験が要求される基準がどのように異なるのか、詳しく説明してください。",
+      "note": "manufacturing · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000251332.pdf",
+          "grade": 1,
+          "page": 15
+        }
+      ]
+    },
+    {
+      "id": "aj-133",
+      "query": "WoE要素が決定的でない場合や、発がん性の懸念を示す場合、医薬品開発者はどのような探策的アプローチを適用することができるか。",
+      "note": "manufacturing · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000251332.pdf",
+          "grade": 1,
+          "page": 26
+        }
+      ]
+    },
+    {
+      "id": "aj-137",
+      "query": "労働災害（業務災害）の対象範囲となる労働者の雇用形態はどのようなものか？",
+      "note": "manufacturing · image",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/110329-1a.pdf",
+          "grade": 1,
+          "page": 3
+        }
+      ]
+    },
+    {
+      "id": "aj-138",
+      "query": "正社員110名およびパートタイマー30名が従事する工場の場合、安全衛生に関してどのような管理者を選任すべきですか？また、社長や役員が管理者を兼ねても支障はありませんか？",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/110329-1a.pdf",
+          "grade": 1,
+          "page": 16
+        }
+      ]
+    },
+    {
+      "id": "aj-139",
+      "query": "製造業の安全管理者は具体的にどのような業務を担当しますか？また、安全管理者になるために必要な資格はありますか？",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/110329-1a.pdf",
+          "grade": 1,
+          "page": 17
+        }
+      ]
+    },
+    {
+      "id": "aj-140",
+      "query": "「労働者の意見を聴くための機会」が必要な労働者数の範囲は何ですか？",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/110329-1a.pdf",
+          "grade": 1,
+          "page": 18
+        }
+      ]
+    },
+    {
+      "id": "aj-191",
+      "query": "ふるさと納税に係る指定制度の適正な運用を確保するための申出書の提出プロセス、および必要な書類に関する詳細な条件とその内容とは何ですか。",
+      "note": "public · table",
+      "relevant": [
+        {
+          "ref": "allganize/public/000956094.pdf",
+          "grade": 1,
+          "page": 1
+        }
+      ]
+    },
+    {
+      "id": "aj-192",
+      "query": "人気施設の特別入場チケットを返礼品として提供する場合、入場チケットの費用は、ふるさと納税に関するどのような費用で対応すれば良いですか？また、ふるさと納税の業務を行ったスタッフに支払われる人件費はどの費用に該当しますか？",
+      "note": "public · image",
+      "relevant": [
+        {
+          "ref": "allganize/public/000956094.pdf",
+          "grade": 1,
+          "page": 4
+        }
+      ]
+    },
+    {
+      "id": "aj-193",
+      "query": "令和5年10月1日から開始する指定対象期間において、ふるさと納税の募集費用の合計額が寄附金受領額の合計額の5割を超過した地方団体が指定の取消しとなる場合、その後の期間にどのような制約が課せられるか具体的に説明してください。",
+      "note": "public · table",
+      "relevant": [
+        {
+          "ref": "allganize/public/000956094.pdf",
+          "grade": 1,
+          "page": 4
+        }
+      ]
+    },
+    {
+      "id": "aj-194",
+      "query": "地場産品基準における地域経済の活性化と関連して、返礼品が原産地外でも同様に提供されている場合、提供可能な返礼品として認められる具体的な条件は何ですか？さらに、これに関する具体的な改正点は何ですか？",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/000956094.pdf",
+          "grade": 1,
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-195",
+      "query": "寄付に提供される輸送品の費用と搬送品の生産地基準について、地方税法に従って特定の寄付金（特例控除対象寄付金）として認められるための基準について説明してください。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/000956094.pdf",
+          "grade": 1,
+          "page": 8
+        }
+      ]
+    },
+    {
+      "id": "aj-196",
+      "query": "地方団体が返礼品等として提供する食品について、産地名の適正な表示を確保するために講じるべき具体的な措置を説明してください。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/000956094.pdf",
+          "grade": 1,
+          "page": 11
+        }
+      ]
+    },
+    {
+      "id": "aj-209",
+      "query": "デジタル田園健康特区に含まれる自治体はいくつですか？",
+      "note": "public · image",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 3
+        }
+      ]
+    },
+    {
+      "id": "aj-210",
+      "query": "令和5年度補正予算額において、デジタルライフラインの全国整備のために、総務省、経済産業省、国土交通省がどのような事業にどれくらいの予算を使用する予定か。",
+      "note": "public · table",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 6
+        }
+      ]
+    },
+    {
+      "id": "aj-211",
+      "query": "ドローンのレベル3飛行の規制関連について、政府が検討している改革案を教えてください。",
+      "note": "public · image",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 7
+        }
+      ]
+    },
+    {
+      "id": "aj-212",
+      "query": "ドローンの活用推進に関する政府の取り組みについて、許可申請手続きについて予定されているものはありますか？",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 7
+        }
+      ]
+    },
+    {
+      "id": "aj-213",
+      "query": "デジタル庁が進めているPMHが、母子保健にどのように関与するのか説明してください。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 11
+        }
+      ]
+    },
+    {
+      "id": "aj-214",
+      "query": "ABRの整備による効果を教えてください。",
+      "note": "public · image",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 17
+        }
+      ]
+    },
+    {
+      "id": "aj-215",
+      "query": "海事行政DXの推進に取り組む背景や、取り組みの目的、現状の課題について教えてください。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 23
+        }
+      ]
+    },
+    {
+      "id": "aj-216",
+      "query": "地域女性活躍推進交付金について、デジタル人材・起業家育成支援型における補助率と交付上限額は活躍推進型と比べてどのように異なりますか。また、それぞれのメニューに対応する政令指定都市と市区町村の交付上限額を具体的に挙げてください。",
+      "note": "public · table",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 44
+        }
+      ]
+    },
+    {
+      "id": "aj-217",
+      "query": "女性の健康の維持や向上を目的に国立成育医療研究センターが行っているデータ収集・解析の具体的な方法とその目的について詳しく説明してください。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "grade": 1,
+          "page": 45
+        }
+      ]
+    },
+    {
+      "id": "aj-291",
+      "query": "販売エリアに掲示する酒類販売管理者情報の標識には、どのような項目を記載するべきですか？",
+      "note": "retail · image",
+      "relevant": [
+        {
+          "ref": "allganize/retail/r04_04_03.pdf",
+          "grade": 1,
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-292",
+      "query": "酒類小売業者が酒類販売管理者を選任するにあたり、候補者が別の販売場で既に酒類販売管理者に選任されている場合、次にどのような手続きを行うべきでしょうか？また、その手続きを行わなかった場合の罰則について説明してください。",
+      "note": "retail · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/retail/r04_04_03.pdf",
+          "grade": 1,
+          "page": 6
+        }
+      ]
+    },
+    {
+      "id": "aj-293",
+      "query": "同じ建物内に酒類を販売する売り場が複数階に存在する場合や、売り場面積が広大な店舗の場合、どのように責任者を配置する必要がありますか？また、責任者の条件も教えてください。",
+      "note": "retail · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/retail/r04_04_03.pdf",
+          "grade": 1,
+          "page": 8
+        }
+      ]
+    },
+    {
+      "id": "aj-294",
+      "query": "ウイスキーと日本酒の代表的な小売価格をもとに酒税額と酒税等負担率を示し、ウイスキーと日本酒の酒税額の金額差と、ウイスキーの酒税が日本酒の酒税に対して何倍になるか計算してください。",
+      "note": "retail · image",
+      "relevant": [
+        {
+          "ref": "allganize/retail/r04_04_03.pdf",
+          "grade": 1,
+          "page": 9
+        }
+      ]
+    },
+    {
+      "id": "aj-295",
+      "query": "酒類販売管理者の選任や解任に関する届出書類は、どこで入手できるか。",
+      "note": "retail · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/retail/r04_04_03.pdf",
+          "grade": 1,
+          "page": 10
+        }
+      ]
+    },
+    {
+      "id": "aj-296",
+      "query": "同一建物内において酒類売場を設置している階が複数ある場合、どのような対応が必要ですか？",
+      "note": "retail · image",
+      "relevant": [
+        {
+          "ref": "allganize/retail/r04_04_03.pdf",
+          "grade": 1,
+          "page": 13
+        }
+      ]
+    },
+    {
+      "id": "aj-287",
+      "query": "食品の入荷品の識別におけるチェック項目には何がありますか？",
+      "note": "retail · table",
+      "relevant": [
+        {
+          "ref": "allganize/retail/manual-kouri.pdf",
+          "grade": 1,
+          "page": 10
+        }
+      ]
+    },
+    {
+      "id": "aj-288",
+      "query": "店舗でカット・小分け・調理した製品の入荷ロットの定義と、ロット番号の割り当て方の例を具体的に教えてください。",
+      "note": "retail · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/retail/manual-kouri.pdf",
+          "grade": 1,
+          "page": 29
+        }
+      ]
+    },
+    {
+      "id": "aj-289",
+      "query": "牛トレサ法での記録の保存期間はどのように設定されていますか？",
+      "note": "retail · table",
+      "relevant": [
+        {
+          "ref": "allganize/retail/manual-kouri.pdf",
+          "grade": 1,
+          "page": 48
+        }
+      ]
+    },
+    {
+      "id": "aj-290",
+      "query": "食品関連商品を保管する際の、保管庫の温度や保管状態を記録しています。これらの記録について保存期間は定められていますか？定められている場合、該当する法令と保存期間について教えてください。",
+      "note": "retail · table",
+      "relevant": [
+        {
+          "ref": "allganize/retail/manual-kouri.pdf",
+          "grade": 1,
+          "page": 48
+        }
+      ]
+    }
+  ]
+}

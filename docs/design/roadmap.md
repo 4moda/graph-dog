@@ -45,11 +45,11 @@ lifecycle](distribution.md).
 
 | | Graphify | GraphDog today | For the roadmap |
 |---|---|---|---|
-| **Install** | `uv tool install graphifyy`, then `graphify install` or `graphify <platform> install`, for the user or `--project` | `npm install -g graphdog`; the MCP config written by hand, pointing at `npx` | **Adopt the shape**, on Homebrew: `brew install`, then `graphdog install <agent>` |
+| **Install** | `uv tool install graphifyy`, then `graphify install` or `graphify <platform> install`, for the user or `--project` | `npm install -g graphdog`; the MCP config written by hand, pointing at `npx` | **Adopt the shape**, on Homebrew: `brew install`, then `graphdog install --platform <name>` |
 | **Upgrade** | `uv tool upgrade graphifyy`, then `graphify install` again | `npm update -g graphdog` | `brew upgrade graphdog`; `graphdog doctor` flags integrations an older version wrote |
 | **Uninstall** | `graphify uninstall`, per-platform variants, `graphify hook uninstall`; `--purge` also deletes the generated output, which is otherwise kept | nothing to undo but the npm package | **Adopt**: `graphdog uninstall`, with `--purge` for data, driven by a record of what was written |
 | **What is installed** | `graphify hook status`; no single command for the rest | nothing | **Improve on it**: `graphdog doctor` |
-| **Agent integration** | per-platform instruction files and hooks that steer the agent to the graph; a strict mode that blocks the first read | an MCP server | MCP registration plus a marker-delimited instruction block; steer, never block |
+| **Agent integration** | per-platform instruction files and hooks that steer the agent to the graph; a strict mode that blocks the first read | an MCP server | MCP registration plus instructions, for Claude Code, GitHub Copilot and Kiro first; steer, never block |
 | **Code** | tree-sitter AST, 37 languages; `calls`, `imports`, `inherits` edges; no LLM | indexed as text chunks | **Leave to code-graph tools**; an optional adapter at most |
 | **Docs, PDFs, images** | an LLM extracts concepts and relations; audio and video transcribed locally | Markdown, text and code; PDF and DOCX behind optional deps | local OCR and transcription, optional; LLM enrichment opt-in only |
 | **Orientation** | a report of hub nodes, cross-module links and suggested questions; Leiden communities named by an LLM | `explore` (the graph neighbourhood around a query's hits), `suggested_queries` (from tags and headings), `status` (counts, freshness). No query-free overview, and no model anywhere in it | **Later, and small**: hub documents and top tags in `status` |
@@ -67,7 +67,34 @@ is a ranking or graph change, and lands with a before-and-after from item 1.
 
 ### 1. Evaluation: a dataset that can tell a change from noise
 
-The current dataset cannot carry that weight:
+**The gate has moved to a frozen, external suite.** CI now gates on
+`allganize-ja` (see [its README](../../eval/suites/allganize-ja/README.md)):
+ten Japanese government PDFs, committed and pinned by SHA-256, with 54
+questions written by Allganize rather than by GraphDog's authors, each judged by
+the page that answers it. Documents were chosen by a stated rule, never by
+results. GraphDog's own docs remain a suite that reports but does not gate.
+
+Building it found three things before a single number was trusted:
+
+- **PDF extraction was broken outright.** pdfjs-dist 6 removed
+  `PDFDocumentProxy.destroy()`, which GraphDog called on every PDF, so every
+  PDF failed. Teardown now goes through the loading task.
+- **Japanese PDFs in CID fonts came out nearly empty.** Without pdf.js's
+  character maps one ministry guideline yielded 17 Japanese characters instead
+  of 7,301. The maps are now passed in, with a test that proves the fixture
+  needs them.
+- **Recall@10 measures nothing on ten documents**: every document is in the top
+  ten. The suite is scored at k=3, and page-level evidence carries most of the
+  signal.
+
+What the first list below still describes is the report-only docs suite; for
+the gate, the corpus no longer moves, the questions are not self-written,
+evidence is judged by page, and the queries are Japanese. At 54 queries, one
+rank slipping from 1 to 2 moves MRR by 0.009, inside the gate's tolerance.
+Still open: no-answer queries, graph and cross-corpus suites, scale, confidence
+intervals, and any semantic-embedder measurement.
+
+What the original dataset could not carry:
 
 - **Too small to resolve anything.** With 15 queries, one query slipping from
   rank 1 to rank 2 moves MRR by 0.033 -- three times the gate's tolerance. The
@@ -144,16 +171,17 @@ No suite's numbers change a default until it has on the order of 50 queries.
 
 Designed in [Distribution and lifecycle](distribution.md). In short:
 
-- **Homebrew first**, from a tap (`brew install 4moda/graphdog/graphdog`) and in
+- **Homebrew first**, from the tap `4moda/homebrew-graphdog` (`brew install 4moda/graphdog/graphdog`) and in
   homebrew-core once GraphDog meets its acceptance policy. Upgrade and removal
   are `brew upgrade` and `brew uninstall`. npm remains for Windows without WSL
   and for CI.
 - **One install gives the CLI and the MCP server**: the `graphdog` package
   depends on `@graphdog/mcp` and exposes it as `graphdog mcp`. The packages stay
   separate.
-- **`graphdog install <agent> [--project]`** registers the MCP server -- the
-  installed binary, never `npx` -- and adds a marker-delimited instruction block
-  that coexists with other tools' blocks.
+- **`graphdog install --platform <claude|copilot|kiro> [--project]`** registers
+  the MCP server -- the installed binary, never `npx` -- and adds GraphDog's
+  instructions: its own file where the platform reads several (Copilot, Kiro), a
+  marker-delimited block where it reads one (Claude Code's `CLAUDE.md`).
 - **`graphdog uninstall [--purge]`** removes exactly what a ledger says was
   written. Homebrew cannot do this part: `brew uninstall` removes only what it
   installed, and `--zap` is for casks.
@@ -190,7 +218,21 @@ What the dataset still shows, now at 15 queries:
   of ten, but also fusion returning a full page when two results would do.
 - **No semantic measurement.** Every number is the hashing embedder.
 
-Each of these is re-measured on the suites from item 1 before anyone acts on it.
+On the gating suite (`allganize-ja`, k=3) the weak spots are different, and
+they are the ones to work on:
+
+- **Answers inside images.** MRR 0.656 and page-level evidence 0.714 for
+  questions whose answer sits in a figure, against 0.853 and 0.800 for
+  paragraphs. Text extraction cannot see an image; this is the gap OCR would
+  close, and it is now measured.
+- **Retail citations.** Page-level evidence 0.600: the right document, the
+  wrong page, four times in ten.
+- **Below plain BM25 on SciFact.** A trial on the public SciFact set scored
+  nDCG@10 0.559 with the default fused pipeline, against 0.665 published for
+  BM25 alone. Whether fusion with the hashing embedder and the graph drags BM25
+  down, or GraphDog's BM25 differs from the standard one, is not yet known.
+
+Each is re-measured before anyone acts on it.
 
 ### 4. Edge provenance
 

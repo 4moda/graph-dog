@@ -258,9 +258,12 @@ search is any good, because the answer is a judgment about documents.
 
 `graphdog eval` closes that gap: a hand-judged dataset, the real `searchCorpus`
 (not a reimplementation of it), and Recall@K, Precision@K, MRR, nDCG@K,
-evidence-line accuracy and latency percentiles. `npm run eval` runs GraphDog's
-own dataset against GraphDog's own docs, and CI fails the build if any metric
-falls below the checked-in baseline.
+evidence accuracy by line or by page, and latency percentiles. `npm run eval`
+runs every suite under `eval/suites/`, each building its corpus afresh in a
+temporary workspace. CI gates on `allganize-ja`: Japanese government PDFs,
+committed and checked against a lock of SHA-256s on every run, with questions
+written outside the project. GraphDog's own docs are a suite too, but they
+report rather than gate, because editing the docs moves their numbers.
 
 The metrics themselves are pure domain functions over a ranked list and a set of
 judgments, so they are tested against worked examples with known answers rather

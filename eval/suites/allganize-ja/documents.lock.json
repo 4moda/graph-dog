@@ -1,0 +1,140 @@
+{
+  "source": {
+    "dataset": "allganize/RAG-Evaluation-Dataset-JA",
+    "revision": "c3a756711f108324d6f27f27093ad2c5eb53f7be",
+    "licence": "MIT (questions); each document under its publisher's terms, see NOTICE.md"
+  },
+  "rule": "eligible: site terms allow redistribution, at least 4 questions, downloadable, page count equals the dataset's, at most 10% of pages without text, no notice overriding the site's terms; selected: per domain, the shortest and the longest",
+  "documents": [
+    {
+      "path": "finance/1c202401.pdf",
+      "domain": "finance",
+      "title": "法人企業景気予測調査（令和６年４～６月期調査）結果の概要",
+      "publisher": "財務省",
+      "url": "https://www.mof.go.jp/pri/reference/bos/results/1c202401.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.mof.go.jp/about_mof/notice/index.html",
+      "pages": 10,
+      "bytes": 367418,
+      "sha256": "d5e9b2ce278eba3b0b8e34bd80210a5c545bdc281b86e2e896372cc44871b7fb",
+      "questions": 5
+    },
+    {
+      "path": "finance/01.pdf",
+      "domain": "finance",
+      "title": "2023年 保険モニタリングレポート【概要】",
+      "publisher": "金融庁",
+      "url": "https://www.fsa.go.jp/news/r4/hoken/20230630-2/01.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.fsa.go.jp/rules/",
+      "pages": 11,
+      "bytes": 2048409,
+      "sha256": "d6d290cdbb9347488a2b40f3cfa927a1b82d46755a198f6d7a57d24e5191a2ef",
+      "questions": 5
+    },
+    {
+      "path": "it/01point.pdf",
+      "domain": "it",
+      "title": "令和 5 年 情報通信に関する現状報告の概要",
+      "publisher": "総務省",
+      "url": "https://www.soumu.go.jp/johotsusintokei/whitepaper/ja/r05/pdf/01point.pdf",
+      "licence": "総務省 開放データ利用規約（第1.0版）",
+      "terms": "https://www.soumu.go.jp/menu_kyotsuu/policy/tyosaku.html",
+      "pages": 12,
+      "bytes": 1383073,
+      "sha256": "52c07e617a498ddc7a0673f92e565e56c25d71b0220fe6a60edce36097e1c785",
+      "questions": 6
+    },
+    {
+      "path": "it/20220422_resources_standard_guidelines_guidebook_01.pdf",
+      "domain": "it",
+      "title": "アジャイル開発実践ガイドブック",
+      "publisher": "デジタル庁",
+      "url": "https://www.digital.go.jp/assets/contents/node/basic_page/field_ref_resources/e2a06143-ed29-4f1d-9c31-0f06fca67afc/9fc931f7/20220422_resources_standard_guidelines_guidebook_01.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.digital.go.jp/copyright-policy",
+      "pages": 37,
+      "bytes": 1008626,
+      "sha256": "84f96116f5f6996f164c1a21bca5a36325e86b48639eb8808d834ce1019020c6",
+      "questions": 5
+    },
+    {
+      "path": "manufacturing/000251332.pdf",
+      "domain": "manufacturing",
+      "title": "がん原性試験ガイドライン",
+      "publisher": "独立行政法人医薬品医療機器総合機構",
+      "url": "https://www.pmda.go.jp/files/000251332.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.pmda.go.jp/0048.html",
+      "pages": 35,
+      "bytes": 1086360,
+      "sha256": "9a701651ee82abcd16d3a0ea5e35385dcba134eac646cedc80e8ec6a33b5e151",
+      "questions": 4
+    },
+    {
+      "path": "manufacturing/110329-1a.pdf",
+      "domain": "manufacturing",
+      "title": "製造事業者向け 安全衛生管理のポイント",
+      "publisher": "厚生労働省",
+      "url": "https://www.mhlw.go.jp/new-info/kobetu/roudou/gyousei/anzen/dl/110329-1a.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.mhlw.go.jp/chosakuken/index.html",
+      "pages": 65,
+      "bytes": 1838878,
+      "sha256": "e0a045ff47deb124190459e867647bcac9c8a09b18777b1e9a02175797b85870",
+      "questions": 4
+    },
+    {
+      "path": "public/000956094.pdf",
+      "domain": "public",
+      "title": "ふるさと納税に係る指定制度の運用について",
+      "publisher": "総務省",
+      "url": "https://www.soumu.go.jp/main_content/000956094.pdf",
+      "licence": "総務省 開放データ利用規約（第1.0版）",
+      "terms": "https://www.soumu.go.jp/menu_kyotsuu/policy/tyosaku.html",
+      "pages": 13,
+      "bytes": 258965,
+      "sha256": "eabf635dd6f2a7a4697764e2f2f05e80e71c6792a7558cc7bdc38ca7fb2dae78",
+      "questions": 6
+    },
+    {
+      "path": "public/20231102_sesaku3.pdf",
+      "domain": "public",
+      "title": "デフレ完全脱却のための総合経済対策～日本経済の新たなステージにむけて～（令和５年11月2日）施策例（全体版3）",
+      "publisher": "内閣府",
+      "url": "https://www5.cao.go.jp/keizai1/keizaitaisaku/2023/20231102_sesaku3.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.cao.go.jp/notice/rule.html",
+      "pages": 49,
+      "bytes": 3927005,
+      "sha256": "3ce3244d1997dfff287269f805c5da4613ef81f70facfcbb0cde2ed80c4755d3",
+      "questions": 9
+    },
+    {
+      "path": "retail/r04_04_03.pdf",
+      "domain": "retail",
+      "title": "酒類販売管理研修モデルテキスト",
+      "publisher": "国税庁",
+      "url": "https://www.nta.go.jp/taxes/sake/hambai/moderutekisuto/pdf/r04_04_03.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.nta.go.jp/chuijiko/copy.htm",
+      "pages": 15,
+      "bytes": 1294489,
+      "sha256": "24b25d0d505a677967f57bde2a09eb86a4739717afc18b19138e9d4c82d6551b",
+      "questions": 6
+    },
+    {
+      "path": "retail/manual-kouri.pdf",
+      "domain": "retail",
+      "title": "食品トレーサビリティ「実践的なマニュアル」各論　小売編",
+      "publisher": "農林水産省",
+      "url": "https://www.maff.go.jp/j/syouan/seisaku/trace/pdf/manual-kouri.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.maff.go.jp/j/use/link.html",
+      "pages": 52,
+      "bytes": 3356590,
+      "sha256": "9a46d782e258fffcb1a38f69cd8713e26ebc67996614035d6aeca5d7d69f1e4f",
+      "questions": 4
+    }
+  ]
+}
