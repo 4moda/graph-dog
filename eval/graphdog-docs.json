@@ -12,7 +12,7 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 3,
-          "lines": "159-165"
+          "lines": "166-172"
         },
         {
           "ref": "docs/design/architecture.md",
@@ -45,7 +45,7 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "192-200"
+          "lines": "199-207"
         }
       ]
     },
@@ -56,7 +56,7 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 3,
-          "lines": "233-242"
+          "lines": "240-249"
         }
       ]
     },
@@ -68,12 +68,12 @@
         {
           "ref": "docs/design/architecture.md",
           "grade": 3,
-          "lines": "209-221"
+          "lines": "227-239"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "212-222"
+          "lines": "219-229"
         }
       ]
     },
@@ -84,7 +84,7 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "381-412"
+          "lines": "467-499"
         }
       ]
     },
@@ -96,7 +96,7 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "95-125"
+          "lines": "96-126"
         }
       ]
     },
@@ -146,12 +146,12 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "155-165"
+          "lines": "156-166"
         },
         {
           "ref": "docs/design/contract.md",
           "grade": 1,
-          "lines": "220-246"
+          "lines": "221-247"
         }
       ]
     },
@@ -179,7 +179,7 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "126-154"
+          "lines": "127-155"
         }
       ]
     },
@@ -190,17 +190,39 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "282-344"
+          "lines": "368-430"
         },
         {
           "ref": "docs/design/architecture.md",
           "grade": 2,
-          "lines": "236-250"
+          "lines": "254-268"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "166-180"
+          "lines": "173-187"
+        }
+      ]
+    },
+    {
+      "id": "moving-a-corpus",
+      "query": "share a built index with a teammate",
+      "note": "Paraphrase: the docs say export, import and archive, never 'share' or 'teammate'.",
+      "relevant": [
+        {
+          "ref": "docs/design/contract.md",
+          "grade": 3,
+          "lines": "283-367"
+        },
+        {
+          "ref": "docs/design/decisions.md",
+          "grade": 2,
+          "lines": "102-114"
+        },
+        {
+          "ref": "docs/design/architecture.md",
+          "grade": 2,
+          "lines": "209-226"
         }
       ]
     }

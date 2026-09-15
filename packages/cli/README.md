@@ -33,6 +33,8 @@ returns those exact lines.
 | `status` | Is this corpus current and usable? |
 | `list` | Every corpus visible from here |
 | `eval <dataset.json>` | Measure retrieval quality against hand-judged queries |
+| `export [--out <path>]` | Package a built corpus as one verifiable `.gdog` file |
+| `import <archive.gdog>` | Verify an archive and install the corpus inside it |
 
 Every command takes `--json` for the machine-readable contract, and `--help`.
 

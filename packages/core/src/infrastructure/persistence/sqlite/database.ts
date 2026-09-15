@@ -24,6 +24,15 @@ export interface Database {
   close(): void;
 }
 
+export interface OpenDatabaseOptions {
+  /**
+   * Open without write access, and without the WAL pragma -- which would
+   * itself write. Used to examine a database from an archive before it is
+   * trusted.
+   */
+  readonly readOnly?: boolean;
+}
+
 /**
  * Open a SQLite database, preferring the built-in driver.
  *
@@ -32,45 +41,74 @@ export interface Database {
  * `synchronous=NORMAL` because a corpus is derived data that can be rebuilt,
  * which makes full fsync durability a poor trade for build speed.
  */
-export async function openDatabase(path: string): Promise<Database> {
-  const database = await openDriver(path);
-  database.exec("PRAGMA journal_mode = WAL");
-  database.exec("PRAGMA synchronous = NORMAL");
-  database.exec("PRAGMA foreign_keys = ON");
-  database.exec("PRAGMA busy_timeout = 5000");
-  return database;
+export async function openDatabase(path: string, options: OpenDatabaseOptions = {}): Promise<Database> {
+  const readOnly = options.readOnly === true;
+  const database = await openDriver(path, readOnly);
+  try {
+    if (readOnly) {
+      // Functions reachable from the schema -- in views, triggers, CHECK
+      // constraints, generated columns -- are limited to side-effect-free
+      // ones. A read-only database is one that may have come from elsewhere.
+      database.exec("PRAGMA trusted_schema = OFF");
+      database.exec("PRAGMA busy_timeout = 5000");
+      return database;
+    }
+    database.exec("PRAGMA journal_mode = WAL");
+    database.exec("PRAGMA synchronous = NORMAL");
+    database.exec("PRAGMA foreign_keys = ON");
+    database.exec("PRAGMA busy_timeout = 5000");
+    return database;
+  } catch (error) {
+    // The first statement is where SQLite notices a file is not a database.
+    // Close the handle rather than leak it; on Windows a leaked handle also
+    // stops the file from being deleted.
+    database.close();
+    throw error;
+  }
 }
 
-async function openDriver(path: string): Promise<Database> {
+async function openDriver(path: string, readOnly: boolean): Promise<Database> {
+  // Only a failure to *load* the built-in driver falls back to better-sqlite3.
+  // A failure to open the file is the file's problem, and reporting it as "no
+  // SQLite driver available" would send someone to fix the wrong thing.
+  let DatabaseSync: typeof import("node:sqlite").DatabaseSync;
   try {
-    const { DatabaseSync } = await import("node:sqlite");
-    const handle = new DatabaseSync(path);
-    return {
-      exec: (sql) => handle.exec(sql),
-      prepare: (sql) => handle.prepare(sql) as unknown as Statement,
-      close: () => handle.close(),
-    };
+    ({ DatabaseSync } = await import("node:sqlite"));
   } catch (builtinError) {
-    try {
-      // @ts-expect-error -- optional dependency, resolved only if installed.
-      const module = await import("better-sqlite3");
-      const BetterSqlite3 = (module.default ?? module) as new (file: string) => {
-        exec(sql: string): void;
-        prepare(sql: string): Statement;
-        close(): void;
-      };
-      const handle = new BetterSqlite3(path);
-      return {
-        exec: (sql) => handle.exec(sql),
-        prepare: (sql) => handle.prepare(sql),
-        close: () => handle.close(),
-      };
-    } catch {
-      throw new ConfigError(
-        "no SQLite driver available: Node 22.5+ provides node:sqlite, " +
-          "otherwise install better-sqlite3",
-        { node_version: process.version, cause: String(builtinError) },
-      );
-    }
+    return openBetterSqlite(path, readOnly, builtinError);
   }
+  const handle = new DatabaseSync(path, { readOnly });
+  return {
+    exec: (sql) => handle.exec(sql),
+    prepare: (sql) => handle.prepare(sql) as unknown as Statement,
+    close: () => handle.close(),
+  };
+}
+
+async function openBetterSqlite(path: string, readOnly: boolean, builtinError: unknown): Promise<Database> {
+  let BetterSqlite3: new (
+    file: string,
+    options?: { readonly?: boolean },
+  ) => {
+    exec(sql: string): void;
+    prepare(sql: string): Statement;
+    close(): void;
+  };
+  try {
+    // @ts-expect-error -- optional dependency, resolved only if installed.
+    const module = await import("better-sqlite3");
+    BetterSqlite3 = module.default ?? module;
+  } catch {
+    throw new ConfigError(
+      "no SQLite driver available: Node 22.5+ provides node:sqlite, " +
+        "otherwise install better-sqlite3",
+      { node_version: process.version, cause: String(builtinError) },
+    );
+  }
+  const handle = new BetterSqlite3(path, { readonly: readOnly });
+  return {
+    exec: (sql) => handle.exec(sql),
+    prepare: (sql) => handle.prepare(sql),
+    close: () => handle.close(),
+  };
 }

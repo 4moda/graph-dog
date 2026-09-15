@@ -132,6 +132,19 @@ export class SqliteCorpusStore implements CorpusStore {
     this.#db.exec("VACUUM");
   }
 
+  /**
+   * Write a consistent, self-contained copy of the corpus to `path`.
+   *
+   * `VACUUM INTO` rather than copying the file: a copy taken while a build is
+   * writing can capture half a transaction, and a WAL-mode file is not
+   * complete without its `-wal` sidecar. The result is a transactionally
+   * consistent, compacted, rollback-journal file -- exactly one file. SQLite
+   * refuses to overwrite an existing `path`.
+   */
+  snapshotTo(path: string): void {
+    this.#db.exec(`VACUUM INTO '${path.replaceAll("'", "''")}'`);
+  }
+
   // --- documents -----------------------------------------------------------
 
   readonly documents: DocumentRepository = {

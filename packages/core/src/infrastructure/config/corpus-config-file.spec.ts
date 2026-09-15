@@ -8,6 +8,7 @@ import { ConfigError } from "../../domain/errors.ts";
 import { defaultCorpusConfig } from "../../application/config.ts";
 import {
   CONFIG_VERSION,
+  formatCorpusConfig,
   loadCorpusConfig,
   parseCorpusConfig,
   saveCorpusConfig,
@@ -191,6 +192,24 @@ describe("infrastructure/config/corpusConfigFile", () => {
           return true;
         },
       );
+    });
+  });
+
+  describe("formatCorpusConfig", () => {
+    it("is byte-for-byte what saveCorpusConfig writes, so an exported config matches the file", async () => {
+      const config = defaultCorpusConfig("formatted");
+      const path = join(root, "formatted.json");
+      await saveCorpusConfig(path, config);
+      assert.equal(await readFile(path, "utf8"), formatCorpusConfig(config));
+    });
+
+    it("is stable through a parse, so re-exporting an imported corpus changes nothing", () => {
+      const text = formatCorpusConfig(defaultCorpusConfig("stable"));
+      assert.equal(formatCorpusConfig(parseCorpusConfig(JSON.parse(text))), text);
+    });
+
+    it("ends with a newline", () => {
+      assert.ok(formatCorpusConfig(defaultCorpusConfig("nl")).endsWith("}\n"));
     });
   });
 });

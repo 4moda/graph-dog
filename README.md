@@ -62,6 +62,8 @@ graphdog explore "access token"      # + the graph neighbourhood
 graphdog read 'docs/token.md#L10-L24'
 graphdog status                      # is this corpus current and usable?
 graphdog eval eval/docs.json         # measure retrieval against a judged dataset
+graphdog export                      # package the corpus as one .gdog file
+graphdog import docs.gdog            # verify someone else's and install it
 ```
 
 Every command takes `--json` for the machine-readable contract.
@@ -161,6 +163,20 @@ GraphDog ships a dataset over its own design docs; `npm run eval` runs it and CI
 gates on it. The first thing it found was a real ranking defect — see
 [the roadmap](docs/design/roadmap.md).
 
+### Moving a corpus
+
+```console
+graphdog export --out docs.gdog      # on the machine with the sources
+graphdog import docs.gdog            # anywhere else: searchable immediately
+```
+
+A `.gdog` file is a gzip'd tar of the index, its config and a manifest with a
+SHA-256 for every file, so `tar -tzf docs.gdog` lists it. Import verifies all of
+it before writing anything; refuses links, path traversal, triggers, and any
+manifest that misdescribes its contents; and installs with a single rename. The
+checksums prove the file arrived intact, not who made it — import archives from
+people you would take the documents from.
+
 ## Japanese and multilingual text
 
 Works out of the box. CJK runs are indexed as character bigrams — the standard
@@ -241,9 +257,10 @@ Each package is layered inward-only: `domain` ← `application` ←
 ## Status
 
 Early. The search pipeline, incremental builds, cross-corpus search, the
-evaluation harness, the CLI and the MCP server are implemented and tested
-(1100+ tests, plus a CI-gated quality baseline). Portable corpus export/import
-and registry distribution are designed but not yet built — see the roadmap.
+evaluation harness, portable export/import, the CLI and the MCP server are
+implemented and tested (1290+ tests, plus a CI-gated quality baseline).
+Registry distribution and archive signing are designed but not yet built — see
+the roadmap.
 
 ## License
 

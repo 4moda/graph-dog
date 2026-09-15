@@ -117,6 +117,14 @@ The metrics take a ranked list and a set of judgments and nothing else, so they
 are usable on their own and testable against worked examples. Throughout them,
 `null` means *unmeasurable* and never *zero*.
 
+## Archives
+
+`exportCorpusArchive` writes a built corpus to one `.gdog` file, and
+`importCorpusArchive` verifies one and installs it; they are what the CLI's
+`export` and `import` call. Underneath, `exportCorpus` and `importCorpus` take
+all their I/O as ports, and `parseManifest` and `verifyArchive` are the pure
+checks an import runs.
+
 ## Layering
 
 `domain` (pure) ← `application` (use cases and ports) ← `infrastructure`

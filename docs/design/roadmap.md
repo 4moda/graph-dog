@@ -14,29 +14,14 @@ What exists, what does not, and what was deliberately deferred.
 - Reranking: cross-encoder, opt-in, degrades to a warning when unavailable
 - Multi-corpus search: `--corpus` repeated or `--all`, merged by rank across corpora
 - Evaluation harness: judged datasets, IR metrics, baselines and a CI regression gate
-- CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`, `eval`
+- Portable archives: `export` and `import` of a verified `.gdog` file
+- CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`, `eval`,
+  `export`, `import`
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
 - Compatibility gate, freshness reporting, auditable exclusions and failures
-- 1100+ tests, every source file with a colocated spec
+- 1290+ tests, every source file with a colocated spec
 
 ## Next
-
-### Portable corpus artifacts
-
-Designed, not built. `export` and `import` producing a single `.gdog` archive:
-
-```
-manifest.json      schema version · embedding identity · chunking fingerprint
-                   source manifest · per-file checksums · build timestamp
-corpus.sqlite3     the index
-```
-
-Import must verify checksums, reject path traversal, and refuse an incompatible
-schema rather than importing it. The compatibility gate already exists; this is
-the transport around it.
-
-A corpus is already a single file that can be copied, which covers the common
-case — the archive adds verification and a manifest for distribution.
 
 ### Ranking work the harness has already identified
 
@@ -74,7 +59,8 @@ somebody actually works in.
 ## Later
 
 - **Registry distribution** — OCI artifacts, GitHub Packages, GitLab Generic
-  Package Registry, in that order of preference. Wants signature verification.
+  Package Registry, in that order of preference. Wants signature verification: `.gdog` archives already carry checksums, which
+  prove an archive is intact but not who made it.
 - **More sources** — Confluence, GitLab wikis and issues, SharePoint, and a
   connector SDK so adapters live outside this repository.
 - **Morphological Japanese tokenization** — `kuromoji` behind the existing

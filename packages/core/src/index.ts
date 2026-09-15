@@ -135,6 +135,22 @@ export {
 export type { EvalDataset, EvalQuery } from "./infrastructure/config/eval-dataset.ts";
 export { baselineScoresFrom, toEvaluationReportDto } from "./application/dto/evaluation-mappers.ts";
 
+// --- portable corpus archives ----------------------------------------------
+export { exportCorpus } from "./application/usecase/export-corpus.ts";
+export type { ExportDependencies, ExportOptions } from "./application/usecase/export-corpus.ts";
+export { importCorpus } from "./application/usecase/import-corpus.ts";
+export type { ImportDependencies, ImportOptions } from "./application/usecase/import-corpus.ts";
+export type { ArchiveOutcome } from "./application/usecase/archive-checks.ts";
+export { toArchiveManifestDto, toArchiveReportDto } from "./application/dto/archive-mappers.ts";
+export {
+  ARCHIVE_EXTENSION,
+  ARCHIVE_FORMAT,
+  ARCHIVE_FORMAT_VERSION,
+  parseManifest,
+  verifyArchive,
+} from "./domain/model/corpus-manifest.ts";
+export type { CorpusManifest } from "./domain/model/corpus-manifest.ts";
+
 // --- composition -------------------------------------------------------------
 export {
   assertCompatible,
@@ -144,6 +160,8 @@ export {
   openResolvedCorpus,
 } from "./composition/corpus-context.ts";
 export type { CorpusContext, OpenCorpusOptions } from "./composition/corpus-context.ts";
+export { exportCorpusArchive, importCorpusArchive } from "./composition/corpus-archive.ts";
+export type { ExportArchiveOptions, ImportArchiveOptions } from "./composition/corpus-archive.ts";
 
 // --- workspace ---------------------------------------------------------------
 export {
