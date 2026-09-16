@@ -303,8 +303,12 @@ current, triggered through each agent's own mechanism. Part of `install`
   incremental only, exposed by default; `full` stays behind `--allow-write`.
 - **Git hooks: opt-in**, `--git-hooks`, for using GraphDog outside an agent.
   Not installed by `--platform`: `SessionStart` already covers a pull between
-  sessions, `.git/hooks` is uncommittable and routinely taken over by husky or
-  lefthook, and it covers nothing for a corpus that is not a git tree.
+  sessions; one action fires several hooks (amend, rebase, a pull that rebases)
+  so the same work is paid repeatedly; a hook runs in whatever shell and `PATH`
+  the caller has, which across Windows, WSL and GUI git clients is often not one
+  that can find `graphdog` at all -- and failing to find it is a silent failure
+  to refresh; `.git/hooks` is uncommittable and routinely taken over by husky or
+  lefthook; and it covers nothing for a corpus that is not a git tree.
 
 **Not a file watcher.** A watcher is a daemon to start, supervise and stop, and
 it fires on saves that mean nothing -- an editor's swap file, a half-written

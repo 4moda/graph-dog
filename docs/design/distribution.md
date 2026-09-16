@@ -199,18 +199,36 @@ its own configured sources, which changes nothing on disk.
 **Git hooks are an option, not the default.** `graphdog install --git-hooks`
 writes marker-delimited `post-commit`, `post-merge`, `post-checkout` and
 `post-rewrite` hooks for someone who uses GraphDog from a terminal rather than
-through an agent. They are not installed by `--platform`, for four reasons:
+through an agent. They are not installed by `--platform`, for five reasons:
 
-- The consumer is the agent. An index needs to be current when an agent
-  searches, and the agent's own lifecycle says exactly when that is.
-- They duplicate coverage that `SessionStart` already has. A pull or a rebase
-  between sessions is picked up when the next session opens, which is before
-  anything reads the index.
-- `.git/hooks` is hostile ground: it cannot be committed, husky, lefthook and
-  pre-commit take it over, `--no-verify` skips it and some GUI clients never run
-  it. Every one of those is a silent failure to refresh.
-- They cover nothing for a corpus that is not a git working tree -- a folder of
-  PDFs, an imported archive.
+- **The consumer is the agent.** An index needs to be current when an agent
+  searches, and the agent's own lifecycle says exactly when that is. A pull or a
+  rebase between sessions is picked up by `SessionStart`, before anything reads
+  the index -- which is the coverage a git hook was there for.
+- **One action fires several hooks.** `git commit --amend` fires `post-commit`
+  and `post-rewrite`. An interactive rebase of ten commits fires `post-checkout`
+  repeatedly and `post-rewrite` at the end. A pull that rebases fires both
+  again. Add an agent that made the commit and its `Stop` fires too. None of
+  this is *wrong* -- updates are idempotent, and two running at once were
+  measured to finish and agree -- but it is the same two seconds paid five or
+  fifteen times for one action. `--debounce <seconds>`, skipping an update when
+  one finished that recently, is the mitigation, and it is one more thing to get
+  right for a trigger that is already redundant.
+- **The execution environment is not the one GraphDog was installed in.**
+  `.git/hooks` scripts run under whatever shell and `PATH` the caller happens to
+  have. Git for Windows runs them in its bundled bash, which may not resolve an
+  npm `graphdog.cmd`; a hook written from WSL for a repository on `/mnt/c` names
+  a Linux path that Git for Windows cannot run, and the reverse; GUI clients --
+  VS Code, GitHub Desktop, JetBrains -- run hooks without the login shell's
+  `PATH`, so `graphdog` is simply not found; and a hook file that picks up CRLF
+  or loses its executable bit on a Windows-mounted filesystem fails with `bad
+  interpreter`. Each of these is a *silent* failure to refresh. An agent hook
+  runs inside the agent, which is running in the environment the user installed
+  GraphDog into.
+- **`.git/hooks` is not GraphDog's to hold.** It cannot be committed, husky,
+  lefthook and pre-commit take it over, and `--no-verify` skips it.
+- **It covers nothing for a corpus that is not a git working tree** -- a folder
+  of PDFs, an imported archive.
 
 **No file watcher**, for the reasons a hook is better than one: a watcher is a
 daemon to start, supervise and remember to stop, and it fires on saves that mean
@@ -222,6 +240,10 @@ Common to all of them:
 - **A trigger never fails the thing that triggered it.** The command is
   `graphdog update --quiet || true`: an agent's turn does not end in an error,
   and a commit is not rejected, because an index could not be refreshed.
+- **Firing twice is wasteful, never wrong.** An update is idempotent and leaves
+  what a rebuild would, so a doubled trigger costs time and changes nothing.
+  `doctor` reports how long the last update took, which is how anyone notices
+  they are paying for it twice.
 - **Concurrent triggers are safe.** A `Stop` hook and a git hook can fire
   together; the corpus is WAL with a busy timeout, and two updates running at
   once both complete and leave the same corpus.
