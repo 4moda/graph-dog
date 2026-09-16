@@ -60,6 +60,38 @@ homebrew-core once GraphDog meets its acceptance policy:
 brew install 4moda/graphdog/graphdog
 ```
 
+### Why a second repository, and why that name
+
+A *tap* is a repository Homebrew draws packages from -- the whole vocabulary is
+beer brewing: a **formula** is a recipe, the **cellar** is where installs are
+kept, a **keg** is one of them, a **bottle** is a prebuilt one, and a **tap** is
+what you pour from. `brew tap` adds another source to pour from.
+
+**The name is not decoration.** The one-line form resolves `user/repo` to
+`github.com/user/homebrew-repo`, mechanically. So `4moda/graphdog/graphdog`
+requires a repository called `homebrew-graphdog`; `graphdog-brew` or
+`graph-dog` cannot serve it.
+
+**Any name works with the long form**, because the local tap name and the remote
+URL are independent:
+
+```console
+brew tap 4moda/graphdog https://github.com/4moda/graph-dog
+brew install graphdog
+```
+
+That would let this repository be its own tap, with the formula at
+`Formula/graphdog.rb`. It is rejected for a reason specific to this repository:
+**a tap is cloned onto every user's machine and re-fetched by every `brew
+update`**, and GraphDog's history is 28 MB, 25 MB of which is the evaluation
+suite's government PDFs. Shipping those to somebody who wanted a search tool
+contradicts everything `uninstall --purge` is careful about. A tap holding one
+formula is a few kilobytes.
+
+So: a separate repository, named `homebrew-graphdog` because that is what buys
+the one-line install, holding nothing but `Formula/graphdog.rb`. The formula's
+source of truth stays here, and releasing copies one generated file.
+
 The formula follows Homebrew's guidance for npm-published CLIs: it depends on
 `node` and installs the published tarball with `std_npm_args`.
 
