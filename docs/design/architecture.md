@@ -119,10 +119,12 @@ Notable choices:
 ```
 query
   ├─ dense     top-k by cosine, filtered by the model's declared noise floor
+  │            (semantic models only — see below)
   ├─ BM25      whole corpus, Okapi BM25 over stored postings
   └─ graph     BFS from the strongest direct hits, decaying per edge kind
         ↓
-     fuse      RRF (default) or weighted sum
+     fuse      RRF (default) or weighted sum; the graph scores only what
+               dense and BM25 did not find
         ↓
      rerank    optional cross-encoder over the shortlist
         ↓
@@ -154,6 +156,36 @@ and a strong corpus's best are both `1.0`. Interleaving those numbers would
 promote whichever corpus had least to offer. Ranks do not carry that distortion,
 so merging is a second RRF pass, and only `final` is rewritten — per-signal
 scores keep the calibration of the corpus that produced them.
+
+### Why a non-semantic embedder is not ranked
+
+The built-in lexical embedder hashes BM25's own tokens. Its vectors therefore
+carry no evidence BM25 does not already have, and fusing them in is one signal
+voting twice — measurably worse than BM25 alone: on SciFact (5,183 documents)
+it cost 0.085 nDCG@10 and missed 17 more queries.
+
+So dense retrieval runs only when the embedding model declares itself
+`semantic`. The vectors are still built and still earn their keep: they draw the
+graph's `similar` edges, where "these two chunks share wording" is exactly the
+claim wanted. `strategy.dense` reports `off:lexical-embedder` rather than a bare
+`off`, so the response says which of the two reasons applies.
+
+### Why the graph adds candidates but never reorders them
+
+Dense and BM25 both answer "how well does this chunk match the query". The graph
+answers something else: "a direct hit links here". Fused as a third opinion at
+full weight it outvoted the query itself — a second-place BM25 hit with a
+first-place graph rank outscored a first-place BM25 hit, which on a small corpus,
+where a shared directory or tag connects everything, happens constantly. Measured
+per signal, the graph cost nDCG@3 on the gating suite (1.000 for BM25 alone
+against 0.744 with the graph fused in).
+
+So the graph term applies only to candidates with no dense and no BM25 rank. It
+appends what the direct signals missed — which is what it is good for: on the
+linked docs suite it still finds a document BM25 misses entirely — and it leaves
+their order exactly as they ranked it. The per-signal `graph` score is still
+reported for every hit, because proximity is worth knowing even when it did not
+decide anything.
 
 ### Why the graph contributes one chunk per document
 

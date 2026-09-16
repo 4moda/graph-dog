@@ -166,6 +166,26 @@ describe("application/usecase/searchCorpus", () => {
       const result = await searchCorpus({ query: "content" }, deps(store));
       assert.equal(result.strategy["dense"], "stub:v1:d3");
     });
+
+    it("does not rank a non-semantic embedder's vectors against the query", async () => {
+      // Hashed vectors are the words BM25 already weighs. Fusing them in is one
+      // signal voting twice; the vectors stay indexed for the graph's
+      // similarity edges, which is what they are actually good for.
+      const store = new InMemoryStore();
+      store.addDocument({
+        ref: "docs/a.md",
+        text: "content",
+        vectorsByChunk: { "docs/a.md#0": [1, 0, 0] },
+      });
+      const embedding = new StubEmbeddingModel({ content: [1, 0, 0] }, false);
+      const result = await searchCorpus({ query: "content" }, deps(store, { embedding }));
+
+      assert.equal(result.strategy["dense"], "off:lexical-embedder", "and it says why, not just 'off'");
+      assert.equal(result.stats["dense_candidates"], 0);
+      assert.equal(result.hits[0]?.scores.dense, null);
+      assert.ok(result.hits.length > 0, "BM25 still answers the query");
+      assert.equal(store.vectors.size(), 1, "the vectors are still there for the graph");
+    });
   });
 
   describe("graph expansion", () => {

@@ -22,7 +22,15 @@ describe("domain/model/scores", () => {
     it("names the strongest retrieval signal", () => {
       assert.equal(dominantSignal(createScores({ final: 1, dense: 0.9, bm25: 0.2 })), "dense");
       assert.equal(dominantSignal(createScores({ final: 1, dense: 0.2, bm25: 0.9 })), "bm25");
-      assert.equal(dominantSignal(createScores({ final: 1, graph: 0.4, bm25: 0.1 })), "graph");
+    });
+
+    it("names the graph only when no direct signal found the chunk", () => {
+      assert.equal(dominantSignal(createScores({ final: 1, graph: 0.4, bm25: 0, dense: 0 })), "graph");
+      assert.equal(
+        dominantSignal(createScores({ final: 1, graph: 0.9, bm25: 0.1 })),
+        "bm25",
+        "BM25 retrieved it and fusion ranked it on BM25 alone; the graph did not place it",
+      );
     });
 
     it("ignores rerank, which reorders rather than retrieves", () => {

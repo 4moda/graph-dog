@@ -90,8 +90,16 @@ export async function searchCorpus(
 
   // --- independent retrieval ------------------------------------------------
 
+  // A non-semantic embedder hashes the same tokens BM25 already weighs, so
+  // fusing its vectors in is not a second opinion -- it is one opinion voting
+  // twice, and on every judged suite it ranks worse than BM25 alone. The
+  // vectors still earn their keep at build time, where they draw the graph's
+  // `similar` edges between documents that share wording.
+  const denseRanks = search.enableDense && embedding.semantic;
+  const offDenseReason = search.enableDense ? "off:lexical-embedder" : "off";
+
   let dense: Array<[string, number]> | null = null;
-  if (search.enableDense && store.vectors.size() > 0) {
+  if (denseRanks && store.vectors.size() > 0) {
     const queryVector = await embedding.embedQuery(options.query);
     // Filtered by absolute similarity, not just truncated by rank: see the note
     // on `minDenseSimilarity`. Without this, everything in a small corpus is a
@@ -244,12 +252,14 @@ export async function searchCorpus(
     });
   }
 
-  if (!embedding.semantic && hits.length > 0) {
+  if (!embedding.semantic) {
     warnings.push({
       code: WarningCode.LEXICAL_EMBEDDING,
       message:
         "this corpus uses the built-in lexical embedder, which matches wording rather " +
-        "than meaning; configure a semantic embedding model for paraphrase recall",
+        "than meaning; its vectors are not ranked against the query (BM25 already " +
+        "weighs those words) and serve only the graph's similarity edges; configure a " +
+        "semantic embedding model for paraphrase recall",
       details: { embedding_id: embedding.id },
     });
   }
@@ -281,7 +291,7 @@ export async function searchCorpus(
     suggestedQueries: suggestQueries(hits, store, options.query),
     strategy: {
       fusion: config.fusion.strategy,
-      dense: dense === null ? "off" : embedding.id,
+      dense: dense !== null ? embedding.id : denseRanks ? "off" : offDenseReason,
       lexical: lexical === null ? "off" : "bm25",
       graph: graphScores === null ? "off" : `expansion:${hops}hop`,
       rerank: reranked ? config.rerank.model : "off",

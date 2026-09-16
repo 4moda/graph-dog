@@ -41,7 +41,7 @@ a 1.2 response without changes.
   "query": "JWT rotation",
   "corpus": "docs",
   "corpora": [
-    { "name": "docs", "scope": "project", "embedding_id": "hash-v1:d256",
+    { "name": "docs", "scope": "project", "embedding_id": "e5-small-v2:d384",
       "hits": 1, "searched": true, "skipped_reason": null }
   ],
   "freshness": {
@@ -71,7 +71,7 @@ a 1.2 response without changes.
   "suggested_queries": ["auth", "jwt", "ローテーション"],
   "strategy": {
     "fusion": "rrf",
-    "dense": "hash-v1:d256",
+    "dense": "e5-small-v2:d384",
     "lexical": "bm25",
     "graph": "expansion:2hop",
     "rerank": "off",
@@ -106,11 +106,31 @@ get those exact lines. Everything else is context for deciding whether to.
 
 So `"bm25": 0` means "no keyword matched", while `"bm25": null` means "lexical
 search was disabled". Values are min-max normalized within the result set;
-`final` is the fused score, scaled so the best hit is `1.0`.
+`final` is the fused score, scaled so the best hit is `1.0`. (The example above
+is a corpus built with a semantic model. With the built-in lexical embedder
+`strategy.dense` reads `off:lexical-embedder` and every `scores.dense` is
+`null`: see below.)
 
-**`found_by`** names the signal most responsible: `dense`, `bm25`, `graph`, or
-`none`. A hit with `found_by: "graph"` was reached by relationship rather than
-by matching the query — `graph_path` then shows the chain:
+**`strategy` says which signals actually ran**, and an `off` value says why when
+the reason is not "you turned it off": `"dense": "off:lexical-embedder"` means
+the corpus has vectors, but from the built-in lexical embedder, which hashes the
+words BM25 already weighs. Ranking them against the query would let one signal
+vote twice, so it does not happen; the vectors still draw the graph's `similar`
+edges. A `lexical_embedding` warning accompanies it.
+
+**The graph score is reported but does not rank a direct hit.** Dense and BM25
+answer "how well does this chunk match the query"; the graph answers "a direct
+hit links here". Fusion scores a chunk on the graph only when neither direct
+signal found it, so the graph adds documents they missed and never reorders the
+ones they found. A `"graph"` value on a chunk with a non-zero `dense` or `bm25`
+is proximity worth knowing about, not a contribution to `final`.
+
+**`found_by`** names the signal that placed the hit: `dense`, `bm25`, `graph`, or
+`none`. It reads `graph` only when neither direct signal retrieved the chunk,
+because only then did the graph decide the rank — a chunk BM25 found is ranked
+by BM25 however near a seed the graph also puts it. A hit with
+`found_by: "graph"` was reached by relationship rather than by matching the
+query, and `graph_path` shows the chain:
 
 ```json
 "graph_path": [
@@ -302,7 +322,7 @@ should not be able to do.
     "created_by": "graphdog 0.1.0",
     "built_at": "2026-09-14T15:15:13.017Z",
     "identity": { "schema_version": "1", "chunking_schema_version": "1",
-                  "embedding_id": "hash-v1:d256", "chunking_fingerprint": "chunk1:9a0c…" },
+                  "embedding_id": "e5-small-v2:d384", "chunking_fingerprint": "chunk1:9a0c…" },
     "counts": { "documents": 4, "chunks": 57, "nodes": 5, "edges": 10 },
     "sources": [ { "id": "docs", "revision": null }, { "id": "spec", "revision": "a1b2c3d4" } ]
   },
@@ -375,7 +395,7 @@ maintainer's job, not something an agent should be able to trigger mid-task.
   "kind": "evaluation_report",
   "dataset": "graphdog-docs",
   "corpus": "graphdog",
-  "embedding_id": "hash-v1:d256",
+  "embedding_id": "e5-small-v2:d384",
   "k": 10,
   "strategy": { "fusion": "rrf", "min_score": 0.12, "top_k": 10 },
   "summary": {

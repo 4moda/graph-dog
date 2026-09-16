@@ -21,7 +21,10 @@ product and the way it is installed, not its feature list.
   `export`, `import`
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
 - Compatibility gate, freshness reporting, auditable exclusions and failures
-- 1290+ tests, every source file with a colocated spec, including that an
+- Fusion that lets each signal do only what it knows: the graph adds candidates
+  the direct signals missed and never reorders them; a non-semantic embedder is
+  not ranked against the query at all
+- 1310+ tests, every source file with a colocated spec, including that an
   incremental update leaves exactly what a full rebuild would
 
 ## What to take from Graphify
@@ -195,12 +198,41 @@ Designed in [Distribution and lifecycle](distribution.md). In short:
 - **Extras and model caches move out of the install directory**, so a
   `brew upgrade` does not silently drop semantic search.
 
-### 3. Ranking work the harness has already identified
+### 3. Ranking: what is fixed, and what the suites still show
 
-The harness's first finding was a defect: graph expansion gave every chunk of a
-reached document the same score, so one graph claim became forty tied candidates
-that RRF ordered by chunk id. Fixing it -- one representative chunk per document
--- moved every metric on the built-in dataset at once:
+**Fusion weighting is done.** The harness had shown the default ranking below
+plain BM25 on all three suites. Two rules fixed it, each measured before and
+after:
+
+- **The graph scores only candidates dense and BM25 did not find.** It appends
+  documents the direct signals missed instead of reordering the ones they found.
+- **A non-semantic embedder is not ranked against the query.** The built-in
+  lexical embedder hashes BM25's own tokens, so fusing it in was one signal
+  voting twice. Its vectors are still built, for the graph's `similar` edges.
+
+| corpus (nDCG) | BM25 | + dense | + graph | old default | **now** |
+|---|---|---|---|---|---|
+| SciFact, 5,183 documents (k=10) | 0.645 | 0.560 | 0.644 | 0.559 | **0.645** |
+| allganize-ja, 15 PDFs (k=3) | 1.000 | 0.993 | 0.744 | 0.803 | **1.000** |
+| GraphDog's own docs, 5 linked files (k=10) | 0.764 | 0.764 | 0.572 | 0.633 | **0.753** |
+
+On the gating suite that took MRR from 0.741 to 1.000 and recall@3 from 0.982 to
+1.000: every one of the 56 questions now puts its judged page's document first.
+The two side effects are recorded rather than hidden:
+
+- **Page-level evidence reads 0.768, against 0.782 before.** The count of
+  correctly cited pages did not fall -- 43 both times. The 56th query now
+  returns a checkable span where it used to return none, and that span cites the
+  wrong page. It is the citation problem below, not a ranking regression.
+- **On GraphDog's own docs, recall@10 fell from 1.000 to 0.944.** One document
+  that only the graph reached now sits below ten direct hits. That is the price
+  of strict appending, and the suite that should price it -- multi-hop questions
+  whose answer is *linked from* what the query matches -- does not exist yet.
+
+Earlier, the harness's first finding was a defect: graph expansion gave every
+chunk of a reached document the same score, so one graph claim became forty tied
+candidates that RRF ordered by chunk id. Fixing it -- one representative chunk
+per document -- moved every metric on the built-in dataset at once:
 
 | | before | after |
 |---|---|---|
@@ -210,56 +242,20 @@ that RRF ordered by chunk id. Fixing it -- one representative chunk per document
 | nDCG@10 | 0.536 | **0.632** |
 | queries that missed entirely | 2 | **0** |
 
-What the dataset still shows, now at 15 queries:
+**What the suites still show, and what is left to do here:**
 
-- **MRR is 0.63 with the lexical default.** The right document is reliably found
-  and often not first -- including for `read_ref line range`, which names a field
-  verbatim. An exact-term query should not need four results.
-- **Citations miss on paraphrase.** Evidence accuracy is 0.625. The paraphrase
-  query added with the archive docs finds all three judged documents and cites
-  the wrong section in each.
-- **Precision@10 is 0.16.** Partly an artifact of four documents and a divisor
-  of ten, but also fusion returning a full page when two results would do.
-- **No semantic measurement.** Every number is the hashing embedder.
-
-On the gating suite (`allganize-ja`, k=3) the weak spots are different, and
-they are the ones to work on:
-
-- **Citations land on the wrong page.** Page-level evidence is 0.782 overall
-  and 0.600 for the IT documents: the right PDF, the wrong page, two times in
-  five. Chunking a 40-page PDF by characters, then citing the best chunk, is
-  what this measures.
-- **Ranking by domain.** MRR is 0.617 for retail and 0.648 for finance against
-  0.894 for manufacturing; the harder domains are the ones whose answers are
-  spread over long documents.
-- **Fusion is the problem, and BM25 is not.** Running each signal separately on
-  three corpora (nDCG; BM25 alone, then with one signal added, then the default):
-
-  | corpus | BM25 | + dense | + graph | default |
-  |---|---|---|---|---|
-  | SciFact, 5,183 documents (k=10) | **0.645** | 0.560 | 0.644 | 0.559 |
-  | allganize-ja, 15 PDFs (k=3) | **1.000** | 0.993 | 0.744 | 0.803 |
-  | GraphDog's own docs, 5 linked files (k=10) | **0.764** | 0.764 | 0.572 | 0.633 |
-
-  GraphDog's BM25 is sound: 0.645 against 0.665 published for BM25 on SciFact,
-  a gap chunking and tokenization explain. What costs the default its quality is
-  fusing the other two signals at full weight:
-
-  - the **hashing embedder** ranks far worse than BM25 and is fused as an equal,
-    which on SciFact costs 0.085 nDCG and misses 17 more queries;
-  - the **graph** flips the top two whenever a document has a weak direct hit
-    and an edge: a second-place BM25 hit plus a first-place graph rank outscores
-    a first-place BM25 hit. On small corpora, where a directory or a tag joins
-    everything, that happens constantly.
-
-  The graph does earn its place on recall -- on the linked docs it found the one
-  document BM25 missed (recall 0.944 to 1.000) -- so the fix is not to remove it
-  but to stop it outranking direct evidence: weight by how much a signal knows,
-  let the graph add candidates below the direct hits rather than reorder them,
-  and reconsider fusing a non-semantic embedder at all.
-
-This is the first thing to work on: it is measured, it affects every query, and
-three suites can judge a fix.
+- **Citations land on the wrong page.** On `allganize-ja` page-level evidence is
+  0.768 overall and 0.636 for the IT documents: the right PDF, the wrong page,
+  one time in three. Chunking a 40-page PDF by characters and citing the best
+  chunk is what this measures, and it is now the largest single weakness in the
+  gate. Ranking cannot fix it; chunking that respects page boundaries can.
+- **Paraphrase misses its section.** On the docs suite the two paraphrase
+  queries find every judged document and cite the wrong section in each.
+- **No semantic measurement.** Every number on this page is the hashing
+  embedder plus BM25. With dense retrieval now gated on `semantic`, the case for
+  a semantic default is a measurement nobody has taken.
+- **Nothing measures what the graph is for.** Its recall contribution shows up
+  on one query of one suite. The graph suite in item 1 is what would price it.
 
 ### 4. Make an update cost what changed
 

@@ -15,6 +15,9 @@ import { compareStrings } from "../ordering.ts";
  * Either way the per-signal numbers reported in the response are the
  * normalized ones, so "why did this rank here" is answerable from the output
  * alone rather than requiring a rerun with debug logging.
+ *
+ * The graph is treated differently from the other two, under both strategies:
+ * it only scores candidates that neither dense nor BM25 found. See `fuse`.
  */
 
 export type FusionStrategy = "rrf" | "weighted";
@@ -89,9 +92,22 @@ function toMap(entries: ReadonlyArray<readonly [string, number]> | null): Map<st
 /**
  * Fuse ranked signals keyed by chunk id.
  *
+ * Dense and BM25 both answer "how well does this chunk match the query", so
+ * they are combined. The graph answers something else entirely: "a direct hit
+ * links here". That is worth acting on when the direct signals found nothing,
+ * and misleading when they did -- a chunk the query itself ranked would be
+ * reordered by link topology, which is how graph-augmented search comes to
+ * feel arbitrary. Measured on the judged suites, letting the graph touch
+ * direct hits cost more than the recall it added.
+ *
+ * So the graph term applies only to candidates with no dense and no BM25
+ * rank. It appends what the direct signals missed; it never reshuffles what
+ * they found. `graphWeight` decides where that appended tier lands.
+ *
  * Per-signal values are the normalized ones, or `null` when that signal did
- * not run at all. Ordering is left to the caller, which resolves ties on
- * chunk id.
+ * not run at all -- reported for every hit, including the graph proximity of a
+ * chunk whose ranking it did not contribute to. Ordering is left to the
+ * caller, which resolves ties on chunk id.
  */
 export function fuse(input: FusionInput, config: FusionConfig = DEFAULT_FUSION): Map<string, FusedScore> {
   const denseRan = input.dense !== null;
@@ -116,13 +132,15 @@ export function fuse(input: FusionInput, config: FusionConfig = DEFAULT_FUSION):
     final,
   });
 
+  /** Did a signal that ranks by query relevance retrieve this chunk at all? */
+  const foundDirectly = (key: string): boolean => denseScores.has(key) || bm25Scores.has(key);
+
   if (config.strategy === "weighted") {
     const total = config.denseWeight + config.bm25Weight + config.graphWeight;
     for (const key of keys) {
-      const sum =
-        config.denseWeight * (denseNorm.get(key) ?? 0) +
-        config.bm25Weight * (bm25Norm.get(key) ?? 0) +
-        config.graphWeight * (graphNorm.get(key) ?? 0);
+      const sum = foundDirectly(key)
+        ? config.denseWeight * (denseNorm.get(key) ?? 0) + config.bm25Weight * (bm25Norm.get(key) ?? 0)
+        : config.graphWeight * (graphNorm.get(key) ?? 0);
       out.set(key, build(key, total > 0 ? sum / total : 0));
     }
     return out;
@@ -135,12 +153,15 @@ export function fuse(input: FusionInput, config: FusionConfig = DEFAULT_FUSION):
   const raw = new Map<string, number>();
   for (const key of keys) {
     let score = 0;
-    const dense = denseRank.get(key);
-    if (dense !== undefined) score += config.denseWeight / (config.rrfK + dense);
-    const bm25 = bm25Rank.get(key);
-    if (bm25 !== undefined) score += config.bm25Weight / (config.rrfK + bm25);
-    const graph = graphRank.get(key);
-    if (graph !== undefined) score += config.graphWeight / (config.rrfK + graph);
+    if (foundDirectly(key)) {
+      const dense = denseRank.get(key);
+      if (dense !== undefined) score += config.denseWeight / (config.rrfK + dense);
+      const bm25 = bm25Rank.get(key);
+      if (bm25 !== undefined) score += config.bm25Weight / (config.rrfK + bm25);
+    } else {
+      const graph = graphRank.get(key);
+      if (graph !== undefined) score += config.graphWeight / (config.rrfK + graph);
+    }
     raw.set(key, score);
   }
 

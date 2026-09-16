@@ -77,6 +77,35 @@ describe("domain/service/fusion", () => {
       assert.equal(order[0], "direct", "graph proximity should not outrank a direct match");
     });
 
+    it("scores direct hits identically whether or not the graph ran", () => {
+      const dense: Array<[string, number]> = [["a", 0.9], ["b", 0.5]];
+      const bm25: Array<[string, number]> = [["b", 9], ["a", 4]];
+      const alone = rankFused(fuse({ dense, bm25, graph: null }));
+      // The graph is close to "b" and says nothing about "a": under a plain RRF
+      // sum that is enough to swap them.
+      const withGraph = rankFused(fuse({ dense, bm25, graph: new Map([["b", 1]]) }));
+      assert.deepEqual(
+        withGraph.map(([id, score]) => [id, score.final]),
+        alone.map(([id, score]) => [id, score.final]),
+      );
+    });
+
+    it("appends a graph-only candidate below the direct hits", () => {
+      const fused = fuse({
+        dense: [["direct", 0.5]],
+        bm25: [["direct", 3]],
+        graph: new Map([["viaGraph", 0.9]]),
+      });
+      assert.deepEqual(rankFused(fused).map(([id]) => id), ["direct", "viaGraph"]);
+      assert.ok((fused.get("viaGraph")?.final ?? 0) > 0, "appended, not discarded");
+    });
+
+    it("still reports the graph proximity of a chunk it did not rank", () => {
+      const fused = fuse({ dense: null, bm25: [["a", 3]], graph: new Map([["a", 0.8], ["b", 0.4]]) });
+      assert.equal(fused.get("a")?.graph, 1, "the proximity is real and worth reporting");
+      assert.equal(fused.get("a")?.final, 1, "but BM25 alone decided where it ranks");
+    });
+
     it("returns zeros rather than NaN when every signal is empty", () => {
       const fused = fuse({ dense: [], bm25: [], graph: new Map() });
       assert.equal(fused.size, 0);
@@ -97,6 +126,13 @@ describe("domain/service/fusion", () => {
       const denseHeavy = { ...config, denseWeight: 10, bm25Weight: 0, graphWeight: 0 };
       const fused = fuse({ dense: [["a", 1], ["b", 0]], bm25: [["b", 9], ["a", 0]], graph: null }, denseHeavy);
       assert.equal(rankFused(fused)[0]?.[0], "a");
+    });
+
+    it("gives the graph no say over a chunk a direct signal found", () => {
+      const dense: Array<[string, number]> = [["a", 0.9], ["b", 0.5]];
+      const alone = fuse({ dense, bm25: null, graph: null }, config);
+      const withGraph = fuse({ dense, bm25: null, graph: new Map([["b", 1]]) }, config);
+      assert.equal(withGraph.get("b")?.final, alone.get("b")?.final);
     });
 
     it("does not divide by zero when all weights are zero", () => {

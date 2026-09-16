@@ -35,20 +35,25 @@ export function createScores(input: Partial<Scores> & { final: number }): Scores
  *
  * Used for the human-readable "why" column. `rerank` is excluded because it
  * reorders rather than retrieves: it never explains how a chunk was found.
+ *
+ * The graph only wins when neither direct signal fired, mirroring fusion: a
+ * chunk BM25 retrieved was ranked by BM25, however close to a seed the graph
+ * also happens to put it. Saying "graph" there would name a signal that did
+ * not place the hit.
  */
 export function dominantSignal(scores: Scores): "dense" | "bm25" | "graph" | "none" {
-  const candidates: Array<["dense" | "bm25" | "graph", number]> = [
+  const direct: Array<["dense" | "bm25", number]> = [
     ["dense", scores.dense ?? -1],
     ["bm25", scores.bm25 ?? -1],
-    ["graph", scores.graph ?? -1],
   ];
   let best: "dense" | "bm25" | "graph" | "none" = "none";
   let bestValue = 0;
-  for (const [name, value] of candidates) {
+  for (const [name, value] of direct) {
     if (value > bestValue) {
       bestValue = value;
       best = name;
     }
   }
+  if (best === "none" && (scores.graph ?? -1) > 0) return "graph";
   return best;
 }

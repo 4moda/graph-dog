@@ -114,7 +114,8 @@ try {
 
 ```
 query
-  ├─ dense retrieval  (whole corpus, filtered by the model's own noise floor)
+  ├─ dense retrieval  (whole corpus, filtered by the model's own noise floor;
+  │                    semantic models only)
   ├─ BM25 retrieval   (whole corpus, real posting lists)
   └─ graph expansion  (from the strongest direct hits, score decaying per hop)
         ↓
@@ -135,6 +136,12 @@ Two details that matter:
 - **The graph contributes one candidate per document**, not one per chunk. A
   graph edge is a claim about a file; spreading it over forty chunks would turn
   one claim into forty tied candidates.
+- **The graph adds, it does not reorder.** It scores only candidates dense and
+  BM25 never found, so it surfaces documents they missed without letting link
+  topology outvote the query. For the same reason the built-in lexical embedder
+  is not ranked at all — it hashes the words BM25 already weighs — and its
+  vectors are kept for the graph's similarity edges. Both are measured, on three
+  suites, in [decisions](docs/design/decisions.md).
 
 ### Several corpora at once
 

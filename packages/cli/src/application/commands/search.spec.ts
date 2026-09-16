@@ -140,7 +140,9 @@ describe("cli/application/commands/search", () => {
       const response = (await search(root, ["JWKS"])).json as SearchResponseDto;
       assert.equal(response.strategy["fusion"], "rrf");
       assert.equal(response.strategy["lexical"], "bm25");
-      assert.ok(String(response.strategy["dense"]).startsWith("hash-v1"));
+      // The default corpus has hashing vectors, but they are not ranked against
+      // the query: the strategy says so rather than leaving the caller to guess.
+      assert.equal(response.strategy["dense"], "off:lexical-embedder");
     } finally {
       await cleanup(root);
     }

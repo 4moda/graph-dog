@@ -153,15 +153,20 @@ carries a warning pointing at the semantic option. A user who needs paraphrase
 recall installs one package and rebuilds.
 
 This is the decision most exposed by the evaluation harness, and deliberately
-so. On GraphDog's own docs the lexical default reaches recall@10 of 1.00 but MRR
-of only 0.58 — the right document is usually found, and usually not first. That
-is a measurement, not a defence. The case for changing the default should be
+so. On GraphDog's own docs the lexical default reaches recall@10 of 0.94 at an
+MRR of 0.74, and on the Japanese gate it answers every question from the right
+document — but both are corpora whose wording the queries largely reuse. That is
+a measurement, not a defence. The case for changing the default should be
 made by running the same dataset against a semantic model on a corpus large
 enough for the difference to show.
 
-The lexical embedder is not redundant with BM25, either: its vectors drive the
-similarity edges in the graph, and the two weight terms differently — BM25 by
-corpus-wide rarity, the embedder by within-chunk prominence.
+The lexical embedder's vectors are **not ranked against the query**. They hash
+BM25's own tokens, so fusing them in is one signal voting twice, and the harness
+priced it: 0.085 nDCG@10 and 17 more missed queries on SciFact. They are still
+built, because they drive the graph's similarity edges — "these two chunks share
+wording" is the claim that rule wants, and BM25's postings do not make it.
+Configure a semantic model and dense retrieval switches on; nothing else about
+the pipeline changes.
 
 ### Fusion: ranks, not weighted sums
 
@@ -169,6 +174,30 @@ Cosine similarity and BM25 live on incomparable scales. Weighted-sum fusion
 requires retuning whenever the embedding model changes. Reciprocal Rank Fusion
 uses only ranks, so the two embedders above are interchangeable with no
 retuning. `weighted` remains available.
+
+### The graph adds candidates; it does not reorder them
+
+A graph edge says "a document you found links here". That is a claim about
+*reachability*, not about the query, and fusing it as a third opinion at full
+weight let it outvote the query: a second-place BM25 hit with a first-place graph
+rank beat a first-place BM25 hit. On a corpus small enough that one directory or
+tag connects everything, that is most queries.
+
+So the graph scores only candidates neither dense nor BM25 retrieved. It appends
+documents the direct signals missed — its actual value, and still measurable: on
+the linked-docs suite it finds a document BM25 misses outright — and it cannot
+touch the order of what they found. Measured on three suites, per signal
+(nDCG; BM25 alone, then each signal added, then the shipped default):
+
+| corpus | BM25 | + dense | + graph | old default | **now** |
+|---|---|---|---|---|---|
+| SciFact, 5,183 documents (k=10) | 0.645 | 0.560 | 0.644 | 0.559 | **0.645** |
+| allganize-ja, 15 PDFs (k=3) | 1.000 | 0.993 | 0.744 | 0.803 | **1.000** |
+| GraphDog's own docs (k=10) | 0.764 | 0.764 | 0.572 | 0.633 | **0.753** |
+
+The two rules together make the default equal to the best single signal on each
+suite, which is the floor a fusion has to clear before its extra signals can be
+argued for.
 
 ### Measurement before tuning
 
