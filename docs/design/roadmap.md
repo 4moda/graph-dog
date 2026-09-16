@@ -18,7 +18,9 @@ product and the way it is installed, not its feature list.
 - Evaluation harness: judged datasets, IR metrics, baselines and a CI regression gate
 - Portable archives: `export` and `import` of a verified `.gdog` file
 - CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`, `eval`,
-  `export`, `import`
+  `export`, `import`, `install`, `uninstall`
+- Agent integration: MCP registration and instructions for Claude Code, GitHub
+  Copilot and Kiro, written from a ledger and removable from it
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
 - Compatibility gate, freshness reporting, auditable exclusions and failures
 - Fusion that lets each signal do only what it knows: the graph adds candidates
@@ -26,7 +28,7 @@ product and the way it is installed, not its feature list.
   not ranked against the query at all
 - Incremental updates that cost what changed: stored similarity neighbour lists,
   refreshed only where a change can have reached them
-- 1340+ tests, every source file with a colocated spec, including that an
+- 1430+ tests, every source file with a colocated spec, including that an
   incremental update leaves exactly what a full rebuild would
 
 ## What to take from Graphify
@@ -51,11 +53,11 @@ lifecycle](distribution.md).
 
 | | Graphify | GraphDog today | For the roadmap |
 |---|---|---|---|
-| **Install** | `uv tool install graphifyy`, then `graphify install` or `graphify <platform> install`, for the user or `--project` | `npm install -g graphdog`; the MCP config written by hand, pointing at `npx` | **Adopt the shape**, on Homebrew: `brew install`, then `graphdog install --platform <name>` |
+| **Install** | `uv tool install graphifyy`, then `graphify install` or `graphify <platform> install`, for the user or `--project` | `npm install -g graphdog`, then `graphdog install --platform <name> [--project]` | **Homebrew**, so the first step is `brew install` |
 | **Upgrade** | `uv tool upgrade graphifyy`, then `graphify install` again | `npm update -g graphdog` | `brew upgrade graphdog`; `graphdog doctor` flags integrations an older version wrote |
-| **Uninstall** | `graphify uninstall`, per-platform variants, `graphify hook uninstall`; `--purge` also deletes the generated output, which is otherwise kept | nothing to undo but the npm package | **Adopt**: `graphdog uninstall`, with `--purge` for data, driven by a record of what was written |
-| **What is installed** | `graphify hook status`; no single command for the rest | nothing | **Improve on it**: `graphdog doctor` |
-| **Agent integration** | per-platform instruction files and hooks that steer the agent to the graph; a strict mode that blocks the first read | an MCP server | MCP registration plus instructions, for Claude Code, GitHub Copilot and Kiro first; steer, never block |
+| **Uninstall** | `graphify uninstall`, per-platform variants, `graphify hook uninstall`; `--purge` also deletes the generated output, which is otherwise kept | `graphdog uninstall`, removing exactly what a ledger records, with `--dry-run` | **`--purge`** for the data, which is otherwise kept |
+| **What is installed** | `graphify hook status`; no single command for the rest | the ledger, `~/.graphdog/installed.json` | **Improve on it**: `graphdog doctor` |
+| **Agent integration** | per-platform instruction files and hooks that steer the agent to the graph; a strict mode that blocks the first read | MCP registration plus instructions, written and removed for Claude Code, GitHub Copilot and Kiro | hooks that refresh the index -- item 4; steer, never block |
 | **Code** | tree-sitter AST, 37 languages; `calls`, `imports`, `inherits` edges; no LLM | indexed as text chunks | **Leave to code-graph tools**; an optional adapter at most |
 | **Docs, PDFs, images** | an LLM extracts concepts and relations; audio and video transcribed locally | Markdown, text and code; PDF and DOCX behind optional deps | local OCR and transcription, optional; LLM enrichment opt-in only |
 | **Orientation** | a report of hub nodes, cross-module links and suggested questions; Leiden communities named by an LLM | `explore` (the graph neighbourhood around a query's hits), `suggested_queries` (from tags and headings), `status` (counts, freshness). No query-free overview, and no model anywhere in it | **Later, and small**: hub documents and top tags in `status` |
@@ -178,23 +180,39 @@ No suite's numbers change a default until it has on the order of 50 queries.
 
 ### 2. Distribution and lifecycle: Homebrew, and an uninstall that leaves nothing behind
 
-Designed in [Distribution and lifecycle](distribution.md). In short:
+Designed in [Distribution and lifecycle](distribution.md).
 
-- **Homebrew first**, from the tap `4moda/homebrew-graphdog` (`brew install 4moda/graphdog/graphdog`) and in
+**Built: connecting an agent, and taking it back off.**
+
+- **`graphdog install --platform <claude|copilot|kiro> [--project]`** registers
+  the MCP server -- the installed binary, never `npx` -- and adds GraphDog's
+  instructions: its own file where the platform reads several (Copilot, Kiro), a
+  marker-delimited block where it reads one (Claude Code's `CLAUDE.md`). A scope
+  a platform does not have is refused naming the one to use, rather than written
+  to a plausible-looking path where it would silently do nothing.
+- **`graphdog uninstall`** removes exactly what the ledger
+  (`~/.graphdog/installed.json`) says was written, and, for the platform asked
+  about, whatever is at the known locations even when no record mentions it --
+  which is a teammate's clone of a repository somebody else ran `--project` in.
+  A file GraphDog created goes; a file it only added to comes back byte for byte.
+- **`--dry-run` on both**, naming every file and key, because "what are you
+  about to write in my repository" deserves an answer before the fact.
+
+**Still to build:**
+
+- **Homebrew**, from the tap `4moda/homebrew-graphdog` (`brew install 4moda/graphdog/graphdog`) and in
   homebrew-core once GraphDog meets its acceptance policy. Upgrade and removal
   are `brew upgrade` and `brew uninstall`. npm remains for Windows without WSL
   and for CI.
 - **One install gives the CLI and the MCP server**: the `graphdog` package
   depends on `@graphdog/mcp` and exposes it as `graphdog mcp`. The packages stay
-  separate.
-- **`graphdog install --platform <claude|copilot|kiro> [--project]`** registers
-  the MCP server -- the installed binary, never `npx` -- and adds GraphDog's
-  instructions: its own file where the platform reads several (Copilot, Kiro), a
-  marker-delimited block where it reads one (Claude Code's `CLAUDE.md`).
-- **`graphdog uninstall [--purge]`** removes exactly what a ledger says was
-  written. Homebrew cannot do this part: `brew uninstall` removes only what it
+  separate. Until then the registration names `graphdog-mcp`, which is the
+  binary that exists.
+- **Hooks** -- item 4, and the reason it is part of `install` rather than beside it.
+- **`--purge`**, deleting GraphDog's own data after listing it with sizes and
+  asking. Homebrew cannot do this part: `brew uninstall` removes only what it
   installed, and `--zap` is for casks.
-- **`graphdog doctor`** reports everything installed and anything broken,
+- **`graphdog doctor`** reporting everything installed and anything broken,
   including integrations written by an older version and corpora this version
   cannot read.
 - **Extras and model caches move out of the install directory**, so a

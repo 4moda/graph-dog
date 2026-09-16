@@ -277,6 +277,29 @@ export interface ArchiveReportDto extends ResponseEnvelope {
   readonly warnings: readonly WarningDto[];
 }
 
+/** One file, configuration key or marker block an install or uninstall touched. */
+export interface IntegrationChangeDto {
+  /** `absent` is a removal that found nothing; `unchanged` an install that had nothing to write. */
+  readonly action: "created" | "updated" | "removed" | "unchanged" | "absent";
+  readonly kind: "file" | "block" | "key";
+  readonly path: string;
+  /** The marker name for a block, the dotted property path for a key, null for a whole file. */
+  readonly at: string | null;
+}
+
+export interface IntegrationReportDto extends ResponseEnvelope {
+  readonly kind: "integration_report";
+  readonly operation: "install" | "uninstall";
+  readonly platforms: readonly string[];
+  /** Null for an uninstall that was not restricted to one scope. */
+  readonly scope: "project" | "user" | null;
+  /** The project root written into, for a project-scope install. */
+  readonly root: string | null;
+  /** True when nothing was written: the changes describe what would have been. */
+  readonly dry_run: boolean;
+  readonly changes: readonly IntegrationChangeDto[];
+}
+
 /** One headline metric, as reported by an evaluation run. */
 export interface EvaluationMetricsDto {
   readonly recall_at_k: number | null;

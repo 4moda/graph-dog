@@ -70,16 +70,27 @@ Every command takes `--json` for the machine-readable contract.
 
 ### From an agent (MCP)
 
-```jsonc
-{
-  "mcpServers": {
-    "graphdog": {
-      "command": "npx",
-      "args": ["-y", "@graphdog/mcp", "--cwd", "/path/to/project"]
-    }
-  }
-}
+```console
+graphdog install --platform claude              # your own configuration
+graphdog install --platform copilot --project   # committable files in this repo
+graphdog install --platform claude --dry-run    # every file and key it would write
 ```
+
+`claude`, `copilot` and `kiro`. It registers the MCP server and adds a short
+instruction block telling the agent to search before it reads — its own file
+where the platform reads a directory of them, a marker-delimited block where it
+reads one shared file, so another tool's section in the same `CLAUDE.md` is
+never touched.
+
+```console
+graphdog uninstall               # every platform, both scopes
+graphdog uninstall --dry-run     # what would go
+```
+
+Everything written is recorded in `~/.graphdog/installed.json`, and uninstall
+removes exactly that: a file GraphDog created goes, a file it only added to
+comes back byte for byte. It also works from a clone that ledger has never seen,
+which is what a committed `--project` install becomes for a teammate.
 
 Exposes `search`, `explore`, `read`, `status` and `list_corpora`. Read-only by
 default — `build_corpus` requires `--allow-write`, so an agent cannot rewrite

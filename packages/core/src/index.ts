@@ -162,6 +162,18 @@ export {
 export type { CorpusContext, OpenCorpusOptions } from "./composition/corpus-context.ts";
 export { exportCorpusArchive, importCorpusArchive } from "./composition/corpus-archive.ts";
 export type { ExportArchiveOptions, ImportArchiveOptions } from "./composition/corpus-archive.ts";
+export {
+  installAgentIntegration,
+  knownPlatforms,
+  uninstallAgentIntegration,
+} from "./composition/agent-integration.ts";
+export type {
+  IntegrationChange,
+  IntegrationOutcome,
+  InstallIntegrationOptions,
+  UninstallIntegrationOptions,
+} from "./composition/agent-integration.ts";
+export type { IntegrationScope } from "./domain/model/installation.ts";
 
 // --- workspace ---------------------------------------------------------------
 export {

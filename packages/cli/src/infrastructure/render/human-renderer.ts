@@ -19,6 +19,7 @@ import type {
   EvaluationReportDto,
   ExploreResponseDto,
   HitDto,
+  IntegrationReportDto,
   ReadResponseDto,
   SearchResponseDto,
   WarningDto,
@@ -573,4 +574,46 @@ function wrap(text: string, width: number, indent: string): string {
   }
   if (current !== "") lines.push(current);
   return lines.join(`\n${indent}`);
+}
+
+/**
+ * What an install or uninstall did, one line per file.
+ *
+ * The path is always shown, including for a `--dry-run`, because the question
+ * this answers is "what are you about to write in my repository" and an answer
+ * that names a platform rather than a file does not answer it.
+ */
+export function renderIntegrationReport(
+  report: IntegrationReportDto,
+  options: RenderOptions = defaultRenderOptions(),
+): string {
+  const lines: string[] = [];
+  const platforms = report.platforms.join(", ");
+  const scope = report.scope === null ? "" : ` (${report.scope} scope)`;
+  const verb = report.dry_run
+    ? `would ${report.operation === "install" ? "connect" : "remove"}`
+    : report.operation === "install"
+      ? "connected"
+      : "removed";
+  lines.push(
+    `${paint(options, report.dry_run ? "yellow" : "green", verb)} ${paint(options, "bold", platforms)}${scope}` +
+      (report.root === null ? "" : ` in ${report.root}`),
+  );
+
+  const colour: Record<IntegrationReportDto["changes"][number]["action"], "green" | "cyan" | "dim"> = {
+    created: "green",
+    updated: "cyan",
+    removed: "green",
+    unchanged: "dim",
+    absent: "dim",
+  };
+  for (const change of report.changes) {
+    const at = change.at === null || change.kind === "block" ? "" : ` ${paint(options, "dim", change.at)}`;
+    lines.push(`  ${paint(options, colour[change.action], change.action.padEnd(9))} ${change.path}${at}`);
+  }
+
+  if (report.operation === "install" && !report.dry_run) {
+    lines.push(paint(options, "dim", "  restart the agent to pick up the new server"));
+  }
+  return `${lines.join("\n")}\n`;
 }

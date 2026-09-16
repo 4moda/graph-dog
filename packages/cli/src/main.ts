@@ -50,6 +50,12 @@ import { readSpec, runRead } from "./application/commands/read.ts";
 import { listSpec, runList, runStatus, statusSpec } from "./application/commands/status.ts";
 import { evalSpec, runEval } from "./application/commands/eval.ts";
 import { exportSpec, importSpec, runExport, runImport } from "./application/commands/archive.ts";
+import {
+  installSpec,
+  runInstall,
+  runUninstall,
+  uninstallSpec,
+} from "./application/commands/install.ts";
 
 type CommandHandler = (context: CommandContext) => Promise<CommandResult>;
 
@@ -71,6 +77,8 @@ const COMMANDS: readonly Command[] = [
   { spec: evalSpec, run: runEval },
   { spec: exportSpec, run: runExport },
   { spec: importSpec, run: runImport },
+  { spec: installSpec, run: runInstall },
+  { spec: uninstallSpec, run: runUninstall },
 ];
 
 /**

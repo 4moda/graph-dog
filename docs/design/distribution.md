@@ -1,8 +1,10 @@
 # Distribution and lifecycle
 
 How GraphDog gets onto a machine, into an agent, up to date, and back off again.
-This is planned, not built; today the only channel is `npm install -g graphdog`,
-and connecting an agent means editing its MCP config by hand.
+
+**Built so far:** `graphdog install --platform <name>` and `graphdog uninstall`,
+with the ledger behind them. **Not yet:** the Homebrew tap, the hooks, `doctor`,
+`extras` and `--purge`. The only channel today is `npm install -g graphdog`.
 
 The goal is the product shape Graphify has shown works, not its feature list:
 one install, one command to connect an agent, one command to upgrade, and an
@@ -121,7 +123,7 @@ instruction files, hooks and data are GraphDog's to remove, which is why
 
 ## Lifecycle commands
 
-### `graphdog install --platform <name> [--project]`
+### `graphdog install --platform <name> [--project]` -- built
 
 Connects GraphDog to an agent: registers the MCP server and adds short
 instructions telling the agent to search before it reads. One command per
@@ -130,13 +132,17 @@ The first three:
 
 | Platform | `--platform` | MCP registration | Instructions |
 |---|---|---|---|
-| Claude Code | `claude` | `.mcp.json` in the project; the user's configuration otherwise | a marker-delimited block in `CLAUDE.md` |
-| GitHub Copilot | `copilot` | to be confirmed: VS Code's `.vscode/mcp.json`, Copilot CLI's configuration, or both | its own file, `.github/instructions/graphdog.instructions.md` |
-| Kiro | `kiro` | `.kiro/settings/mcp.json` in the project; the user's Kiro settings otherwise | its own file, `.kiro/steering/graphdog.md` |
+| Claude Code | `claude` | `.mcp.json` with `--project`, `~/.claude.json` otherwise | a marker-delimited block in `CLAUDE.md`, or `~/.claude/CLAUDE.md` |
+| GitHub Copilot | `copilot` | `.vscode/mcp.json`, whose container is `servers` rather than `mcpServers`. Project scope only | its own file, `.github/instructions/graphdog.instructions.md` |
+| Kiro | `kiro` | `.kiro/settings/mcp.json`. Project scope only | its own file, `.kiro/steering/graphdog.md` |
 
 These are the locations code-review-graph already writes to in this repository,
-which is the evidence they are right; the Copilot MCP target is the one still to
-check.
+which is the evidence they are right.
+
+A scope a platform does not have is **refused, naming the one to use** -- Kiro
+reads steering from the project, and Copilot's user-scope registration differs
+between VS Code and the Copilot CLI. Writing to a plausible-looking path instead
+would leave somebody with an integration that silently does nothing.
 
 - **User scope** by default, in the agent's own configuration. **Project scope**
   with `--project`: files in the repository -- for Claude Code, `.mcp.json` and
@@ -147,14 +153,14 @@ check.
   `<!-- /graphdog -->`) that coexists with other tools' blocks --
   code-review-graph has its own in the same file -- and never touches anything
   outside its markers. Both carry the version that wrote them.
-- **The MCP registration runs `graphdog mcp`** from `PATH`, not a Homebrew
+- **The MCP registration runs `graphdog-mcp`** from `PATH`, not a Homebrew
   Cellar path, so it survives upgrades, and not `npx`, so it never downloads.
 - **Read-only by default.** `--allow-write` stays an explicit choice at install
   time, as it is for the MCP server today.
 - **Steer, never block.** No hook that stops an agent reading a file.
 - `--dry-run` shows every file and key it would write.
 
-### Keeping the index current
+### Keeping the index current -- not built
 
 Part of `graphdog install --platform <name>`, not a separate step: connecting an
 agent and keeping the thing it searches current are the same job.
@@ -255,7 +261,7 @@ Common to all of them:
 - Recorded in the same ledger as everything else, and removed by
   `graphdog uninstall`.
 
-### `graphdog uninstall [--platform <name>] [--project] [--purge]`
+### `graphdog uninstall [--platform <name>] [--project] [--purge]` -- built, without `--purge`
 
 Takes back what `install` wrote.
 
@@ -266,7 +272,12 @@ Takes back what `install` wrote.
   project-scope integration can also be removed from a clone the ledger has
   never seen -- a teammate's checkout.
 - A file GraphDog created and that is empty afterwards is deleted; a file it only
-  added to is left otherwise untouched.
+  added to is left otherwise untouched -- byte for byte what was there before,
+  which the specs assert as a round trip rather than by inspection. A directory
+  the install created and that is empty afterwards goes too; one that still
+  holds somebody else's file stays.
+- **No platform named means every platform, and both scopes.** "Take it off"
+  that leaves the other scope behind is the uninstall people complain about.
 - `--purge` additionally deletes GraphDog's own data after listing it with sizes
   and asking: home-workspace corpora, optional extras, the model cache. With
   `--project`, it also deletes the project's built indexes.
@@ -275,7 +286,7 @@ Takes back what `install` wrote.
   committed.
 - `--dry-run` shows what would go.
 
-### `graphdog doctor`
+### `graphdog doctor` -- not built
 
 One report of everything installed and anything wrong:
 
@@ -294,7 +305,7 @@ It exits non-zero when something is broken -- a registration pointing at a
 command that no longer exists, a corpus this version cannot read -- so it can
 run in CI or after an upgrade script.
 
-### `graphdog extras add <semantic|pdf|docx>`
+### `graphdog extras add <semantic|pdf|docx>` -- not built
 
 Optional capabilities are optional npm packages today, installed next to
 GraphDog. Under Homebrew that place is the Cellar, which an upgrade replaces, so
