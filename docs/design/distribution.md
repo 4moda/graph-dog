@@ -160,7 +160,7 @@ would leave somebody with an integration that silently does nothing.
 - **Steer, never block.** No hook that stops an agent reading a file.
 - `--dry-run` shows every file and key it would write.
 
-### Keeping the index current -- not built
+### Keeping the index current -- built, except Kiro's hooks
 
 Part of `graphdog install --platform <name>`, not a separate step: connecting an
 agent and keeping the thing it searches current are the same job.
@@ -174,9 +174,13 @@ than arranging to be told.
 
 | Platform | Mechanism | What it does |
 |---|---|---|
-| Claude Code | hooks | `SessionStart` runs an update when a session opens; `Stop` runs one when a turn that may have edited files ends |
-| Kiro | agent hooks | the same two moments, through Kiro's own hook configuration (the exact events still to confirm) |
+| Claude Code | hooks in `.claude/settings.json` | `SessionStart` runs an update when a session opens; `Stop` runs one when a turn that may have edited files ends |
+| Kiro | agent hooks | the same two moments -- **not written yet**: which of Kiro's events correspond to these is unconfirmed, and a guess would be a hook that silently never fires |
 | GitHub Copilot | instructions | no hook mechanism exists, so the instruction file tells the agent to refresh when GraphDog says the corpus is stale |
+
+The command is `graphdog update --all --quiet || true`. `--all` because a search
+may reach any corpus visible from here, and a refresh that took the first of
+three would be the silent staleness the trigger exists to prevent.
 
 **Where hooks exist, use hooks.** They are deterministic: they fire whether or
 not the agent thought to, and they cost no tokens. `Stop` rather than a
@@ -236,6 +240,10 @@ through an agent. They are not installed by `--platform`, for five reasons:
 - **It covers nothing for a corpus that is not a git working tree** -- a folder
   of PDFs, an imported archive.
 
+An agent hook is one entry in a list of them, so GraphDog appends its own and,
+on the way out, removes that element rather than the key -- deleting the key
+would take every other tool's hook for the same event with it.
+
 **No file watcher**, for the reasons a hook is better than one: a watcher is a
 daemon to start, supervise and remember to stop, and it fires on saves that mean
 nothing -- an editor's swap file, a half-written line, a build directory. Every
@@ -256,8 +264,10 @@ Common to all of them:
 - **Marker-delimited or its own key**, like the instruction blocks, so
   uninstall removes exactly what was written and nothing beside it.
 - **A repository's hook manager wins.** husky, lefthook and pre-commit own
-  `.git/hooks`, so `--git-hooks` writes to their configuration instead, and
-  `doctor` reports which one is in charge.
+  `.git/hooks` and regenerate it, so GraphDog's lines would vanish at their next
+  install -- silently. `--git-hooks` detects them and **refuses, naming the line
+  to add** to their configuration. Writing that configuration for them is still
+  to do.
 - Recorded in the same ledger as everything else, and removed by
   `graphdog uninstall`.
 

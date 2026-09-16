@@ -87,10 +87,21 @@ graphdog uninstall               # every platform, both scopes
 graphdog uninstall --dry-run     # what would go
 ```
 
+It also keeps the index current, through whatever mechanism the agent has.
+Claude Code gets `SessionStart` and `Stop` hooks running
+`graphdog update --all --quiet || true`; Copilot, which has none, is told in its
+instructions to refresh when a search reports the corpus stale. Add
+`--git-hooks` for `post-commit`, `post-merge`, `post-checkout` and
+`post-rewrite` as well — off by default, because a git hook runs in whatever
+shell and `PATH` the caller happens to have, and across Windows, WSL and GUI git
+clients that is often not one that can find `graphdog` at all.
+
 Everything written is recorded in `~/.graphdog/installed.json`, and uninstall
 removes exactly that: a file GraphDog created goes, a file it only added to
-comes back byte for byte. It also works from a clone that ledger has never seen,
-which is what a committed `--project` install becomes for a teammate.
+comes back byte for byte, and one hook entry is removed without touching the
+other tools' hooks for the same event. It also works from a clone that ledger
+has never seen, which is what a committed `--project` install becomes for a
+teammate.
 
 Exposes `search`, `explore`, `read`, `status` and `list_corpora`. Read-only by
 default — `build_corpus` requires `--allow-write`, so an agent cannot rewrite

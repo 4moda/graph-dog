@@ -3,7 +3,7 @@ import { writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { ConfigError, ExitCode, type BuildReportDto } from "@graphdog/core";
+import { ConfigError, ExitCode, type BuildReportDto, type BuildReportsDto } from "@graphdog/core";
 
 import { FIXTURE_DOCS, cleanup, makeProject, run } from "./__fixtures__/cli-harness.ts";
 import { addSpec, runAdd } from "./add.ts";
@@ -21,6 +21,48 @@ const build = (cwd: string, argv: readonly string[] = []) =>
   run(buildSpec, (context) => runBuild(context, true), cwd, argv);
 const update = (cwd: string, argv: readonly string[] = []) =>
   run(updateSpec, (context) => runBuild(context, false), cwd, argv);
+
+describe("cli/application/commands/build --all", () => {
+  it("builds every corpus visible from here, reporting each", async () => {
+    // A hook that refreshed the first of three corpora would be exactly the
+    // silent staleness the trigger exists to prevent.
+    const root = await makeProject(FIXTURE_DOCS);
+    try {
+      await run(initSpec, runInit, root, ["docs"]);
+      await run(addSpec, runAdd, root, ["./docs", "--corpus", "docs"]);
+      await run(initSpec, runInit, root, ["notes"]);
+      await run(addSpec, runAdd, root, ["./docs", "--corpus", "notes"]);
+
+      const result = await build(root, ["--all"]);
+      const report = result.json as BuildReportsDto;
+      assert.equal(report.kind, "build_reports");
+      assert.deepEqual(report.reports.map((one) => one.corpus).sort(), ["docs", "notes"]);
+      assert.equal(report.status, "ok");
+      assert.ok(result.human.includes("docs") && result.human.includes("notes"));
+    } finally {
+      await cleanup(root);
+    }
+  });
+
+  it("returns a single report, not a list, when there is one corpus", async () => {
+    const root = await project();
+    try {
+      const report = (await build(root, ["--all"])).json as BuildReportDto;
+      assert.equal(report.kind, "build_report");
+    } finally {
+      await cleanup(root);
+    }
+  });
+
+  it("refuses --all where there are no corpora, rather than reporting success", async () => {
+    const root = await makeProject();
+    try {
+      await assert.rejects(() => update(root, ["--all"]), ConfigError);
+    } finally {
+      await cleanup(root);
+    }
+  });
+});
 
 describe("cli/application/commands/build", () => {
   it("indexes the configured sources", async () => {

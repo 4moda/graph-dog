@@ -60,7 +60,10 @@ describe("composition/agent-integration", () => {
       const outcome = await installAgentIntegration({ platform: "claude", scope: "project", cwd });
 
       assert.equal(outcome.operation, "install");
-      assert.deepEqual(outcome.changes.map((change) => change.action), ["created", "created"]);
+      assert.deepEqual(
+        outcome.changes.map((change) => `${change.kind}:${change.action}`),
+        ["key:created", "block:created", "hook:created", "hook:created"],
+      );
 
       const mcp = JSON.parse(await read(join(cwd, ".mcp.json"))) as Record<string, Record<string, unknown>>;
       assert.deepEqual(mcp["mcpServers"]?.["graphdog"], { command: "graphdog-mcp", args: [] });
@@ -137,7 +140,10 @@ describe("composition/agent-integration", () => {
       const cwd = await fresh();
       await installAgentIntegration({ platform: "claude", scope: "project", cwd });
       const again = await installAgentIntegration({ platform: "claude", scope: "project", cwd });
-      assert.deepEqual(again.changes.map((change) => change.action), ["unchanged", "unchanged"]);
+      assert.ok(
+        again.changes.every((change) => change.action === "unchanged"),
+        JSON.stringify(again.changes),
+      );
     });
 
     it("installs into the user's own configuration by default", async () => {
@@ -183,7 +189,7 @@ describe("composition/agent-integration", () => {
       assert.notEqual(record?.version, undefined);
       assert.deepEqual(
         record?.artifacts.map((artifact) => artifact.kind).sort(),
-        ["block", "key"],
+        ["block", "hook", "hook", "key"],
       );
     });
 
@@ -198,15 +204,182 @@ describe("composition/agent-integration", () => {
       it("reports every file it would write and writes none of them", async () => {
         const cwd = await fresh();
         const outcome = await installAgentIntegration({ platform: "claude", scope: "project", cwd, dryRun: true });
-        assert.deepEqual(outcome.changes.map((change) => change.action), ["created", "created"]);
+        assert.ok(outcome.changes.every((change) => change.action === "created"));
         assert.deepEqual(
-          outcome.changes.map((change) => change.path),
-          [join(cwd, ".mcp.json"), join(cwd, "CLAUDE.md")],
+          [...new Set(outcome.changes.map((change) => change.path))],
+          [join(cwd, ".mcp.json"), join(cwd, "CLAUDE.md"), join(cwd, ".claude", "settings.json")],
         );
         assert.equal(await exists(join(cwd, ".mcp.json")), false);
         assert.equal(await exists(join(cwd, "CLAUDE.md")), false);
+        assert.equal(await exists(join(cwd, ".claude", "settings.json")), false);
         assert.deepEqual((await readLedger()).installations, []);
       });
+    });
+  });
+
+  describe("hooks", () => {
+    const settings = (cwd: string): string => join(cwd, ".claude", "settings.json");
+    const readJson = async (path: string): Promise<Record<string, Record<string, unknown[]>>> =>
+      JSON.parse(await read(path)) as Record<string, Record<string, unknown[]>>;
+
+    it("runs an update when a session opens and when a turn ends", async () => {
+      // SessionStart catches the pull and the editing between sessions, before
+      // the first search reads the index; Stop catches what the agent just did.
+      const cwd = await fresh();
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      const hooks = (await readJson(settings(cwd)))["hooks"];
+      assert.deepEqual(Object.keys(hooks ?? {}).sort(), ["SessionStart", "Stop"]);
+    });
+
+    it("refreshes every corpus, and cannot fail the turn that triggered it", async () => {
+      const cwd = await fresh();
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      const text = await read(settings(cwd));
+      assert.match(text, /graphdog update --all --quiet \|\| true/);
+    });
+
+    it("appends beside another tool's hook for the same event", async () => {
+      const cwd = await fresh();
+      await mkdir(join(cwd, ".claude"), { recursive: true });
+      const theirs = { hooks: [{ type: "command", command: "other-tool sync" }] };
+      await writeFile(settings(cwd), JSON.stringify({ hooks: { Stop: [theirs] } }, null, 2), "utf8");
+
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      const stop = (await readJson(settings(cwd)))["hooks"]?.["Stop"];
+      assert.equal(stop?.length, 2);
+      assert.deepEqual(stop?.[0], theirs, "theirs stays, and stays first");
+    });
+
+    it("removes its own entry and leaves the other tool's", async () => {
+      const cwd = await fresh();
+      await mkdir(join(cwd, ".claude"), { recursive: true });
+      const theirs = { hooks: [{ type: "command", command: "other-tool sync" }] };
+      await writeFile(settings(cwd), JSON.stringify({ hooks: { Stop: [theirs] } }, null, 2), "utf8");
+
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      await uninstallAgentIntegration({ platform: "claude", scope: "project", cwd });
+
+      // Deleting the key rather than the element would have taken theirs too.
+      assert.deepEqual((await readJson(settings(cwd)))["hooks"]?.["Stop"], [theirs]);
+    });
+
+    it("deletes a settings file that held nothing else", async () => {
+      const cwd = await fresh();
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      await uninstallAgentIntegration({ platform: "claude", scope: "project", cwd });
+      assert.equal(await exists(settings(cwd)), false);
+    });
+
+    it("leaves unrelated settings alone", async () => {
+      const cwd = await fresh();
+      await mkdir(join(cwd, ".claude"), { recursive: true });
+      await writeFile(settings(cwd), JSON.stringify({ model: "opus" }, null, 2), "utf8");
+
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      await uninstallAgentIntegration({ platform: "claude", scope: "project", cwd });
+      assert.equal(await read(settings(cwd)), '{\n  "model": "opus"\n}\n');
+    });
+
+    it("writes no hooks for a platform that has no hook mechanism", async () => {
+      // Copilot's instruction file carries the freshness rule instead, which
+      // works because every search reports whether the corpus is stale.
+      const cwd = await fresh();
+      const outcome = await installAgentIntegration({ platform: "copilot", scope: "project", cwd });
+      assert.ok(outcome.changes.every((change) => change.kind !== "hook"));
+    });
+  });
+
+  describe("git hooks", () => {
+    /** A project that is also a git working tree, without running git. */
+    async function gitProject(): Promise<string> {
+      const cwd = await fresh();
+      await mkdir(join(cwd, ".git", "hooks"), { recursive: true });
+      return cwd;
+    }
+
+    it("is not installed unless asked for", async () => {
+      const cwd = await gitProject();
+      await installAgentIntegration({ platform: "claude", scope: "project", cwd });
+      assert.equal(await exists(join(cwd, ".git", "hooks", "post-commit")), false);
+    });
+
+    it("writes the four hooks a tree can change under", async () => {
+      const cwd = await gitProject();
+      const outcome = await installAgentIntegration({ gitHooks: true, scope: "project", cwd });
+      assert.deepEqual(outcome.platforms, ["git"]);
+      for (const name of ["post-commit", "post-merge", "post-checkout", "post-rewrite"]) {
+        const script = await read(join(cwd, ".git", "hooks", name));
+        assert.match(script, /^#!\/bin\/sh/);
+        assert.match(script, /# >>> graphdog\ngraphdog update --all --quiet \|\| true\n# <<< graphdog/);
+      }
+    });
+
+    it("makes the hooks executable, or git would skip them in silence", async () => {
+      const cwd = await gitProject();
+      await installAgentIntegration({ gitHooks: true, scope: "project", cwd });
+      const mode = (await stat(join(cwd, ".git", "hooks", "post-commit"))).mode & 0o777;
+      assert.equal(mode & 0o111, 0o111, `mode ${mode.toString(8)}`);
+    });
+
+    it("keeps an existing hook script and adds its own lines to it", async () => {
+      const cwd = await gitProject();
+      const theirs = "#!/bin/sh\nexec other-tool\n";
+      await writeFile(join(cwd, ".git", "hooks", "post-commit"), theirs, "utf8");
+
+      await installAgentIntegration({ gitHooks: true, scope: "project", cwd });
+      const script = await read(join(cwd, ".git", "hooks", "post-commit"));
+      assert.ok(script.startsWith(theirs));
+
+      await uninstallAgentIntegration({ platform: "git", scope: "project", cwd });
+      assert.equal(await read(join(cwd, ".git", "hooks", "post-commit")), theirs);
+    });
+
+    it("deletes a hook script that was nothing but its own lines", async () => {
+      const cwd = await gitProject();
+      await installAgentIntegration({ gitHooks: true, scope: "project", cwd });
+      await uninstallAgentIntegration({ platform: "git", scope: "project", cwd });
+      assert.equal(await exists(join(cwd, ".git", "hooks", "post-commit")), false);
+    });
+
+    it("refuses where another tool manages the hooks, naming the line to add", async () => {
+      // husky regenerates .git/hooks, so GraphDog's lines would vanish at the
+      // next install -- silently, which is the worst way to stop refreshing.
+      const cwd = await gitProject();
+      await mkdir(join(cwd, ".husky"), { recursive: true });
+      await assert.rejects(
+        () => installAgentIntegration({ gitHooks: true, scope: "project", cwd }),
+        (error: unknown) => {
+          assert.ok(error instanceof ConfigError);
+          assert.match(error.message, /managed by husky/);
+          assert.match(String(error.details["remedy"]), /graphdog update --all --quiet/);
+          return true;
+        },
+      );
+    });
+
+    it("refuses where there is no git working tree", async () => {
+      const cwd = await fresh();
+      await assert.rejects(
+        () => installAgentIntegration({ gitHooks: true, scope: "project", cwd }),
+        (error: unknown) => {
+          assert.ok(error instanceof ConfigError);
+          assert.match(error.message, /not a git working tree/);
+          return true;
+        },
+      );
+    });
+
+    it("refuses an install that was asked to do nothing at all", async () => {
+      const cwd = await fresh();
+      await assert.rejects(() => installAgentIntegration({ cwd }), ConfigError);
+    });
+
+    it("goes with an uninstall that names no platform", async () => {
+      const cwd = await gitProject();
+      await installAgentIntegration({ platform: "claude", gitHooks: true, scope: "project", cwd });
+      await uninstallAgentIntegration({ cwd });
+      assert.equal(await exists(join(cwd, ".git", "hooks", "post-commit")), false);
+      assert.equal(await exists(join(cwd, "CLAUDE.md")), false);
     });
   });
 

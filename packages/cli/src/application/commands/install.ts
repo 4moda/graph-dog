@@ -32,7 +32,7 @@ const PLATFORMS = knownPlatforms()
 export const installSpec: CommandSpec = {
   name: "install",
   summary: "Connect GraphDog to an agent",
-  usage: `graphdog install --platform <${PLATFORMS}> [--project] [--allow-write] [--dry-run]`,
+  usage: `graphdog install --platform <${PLATFORMS}> [--project] [--allow-write] [--git-hooks] [--dry-run]`,
   options: {
     platform: {
       type: "string",
@@ -48,24 +48,28 @@ export const installSpec: CommandSpec = {
       type: "boolean",
       description: "Let the agent rebuild the corpus through MCP; off by default",
     },
+    "git-hooks": {
+      type: "boolean",
+      description: "Also refresh the index from git's post-commit, -merge, -checkout and -rewrite",
+    },
     "dry-run": { type: "boolean", description: "Show every file and key that would be written" },
   },
   examples: [
     "graphdog install --platform claude",
     "graphdog install --platform copilot --project",
-    "graphdog install --platform claude --project --dry-run",
+    "graphdog install --platform claude --project --git-hooks --dry-run",
   ],
 };
 
 export const uninstallSpec: CommandSpec = {
   name: "uninstall",
   summary: "Remove what install wrote",
-  usage: `graphdog uninstall [--platform <${PLATFORMS}>] [--project] [--dry-run]`,
+  usage: `graphdog uninstall [--platform <${PLATFORMS}|git>] [--project] [--dry-run]`,
   options: {
     platform: {
       type: "string",
       short: "p",
-      description: "Only this agent; every one by default",
+      description: `Only this agent, or "git" for the git hooks; every one by default`,
       placeholder: "<name>",
     },
     project: { type: "boolean", description: "Only this repository's files" },
@@ -77,12 +81,14 @@ export const uninstallSpec: CommandSpec = {
 export async function runInstall(context: CommandContext): Promise<CommandResult> {
   refusePositionals(context, installSpec);
   const platform = optionString(context.parsed, "platform");
-  if (platform === undefined) {
+  const gitHooks = optionBoolean(context.parsed, "git-hooks");
+  if (platform === undefined && !gitHooks) {
     throw new UsageError(`install: --platform is required (${PLATFORMS})`, { usage: installSpec.usage });
   }
 
   const outcome = await installAgentIntegration({
-    platform,
+    ...(platform === undefined ? {} : { platform }),
+    gitHooks,
     scope: scopeFrom(context),
     allowWrite: optionBoolean(context.parsed, "allow-write"),
     dryRun: optionBoolean(context.parsed, "dry-run"),

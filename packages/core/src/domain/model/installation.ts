@@ -35,10 +35,12 @@ export interface InstalledArtifact {
    *   removes the region and leaves the file.
    * - `key` -- a property in a JSON configuration; uninstall deletes the
    *   property and leaves the rest of the document.
+   * - `hook` -- one entry in an array of them. Not a `key`, because deleting
+   *   the key would take every other tool's hook for that event with it.
    */
-  readonly kind: "file" | "block" | "key";
+  readonly kind: "file" | "block" | "key" | "hook";
   readonly path: string;
-  /** The marker name for `block`, the dotted property path for `key`, null for `file`. */
+  /** The marker name for `block`, the dotted property path for `key` and `hook`, null for `file`. */
   readonly at: string | null;
 }
 
@@ -167,7 +169,7 @@ function parseArtifact(value: unknown): InstalledArtifact | null {
   const row = value as Record<string, unknown>;
   const kind = row["kind"];
   const path = row["path"];
-  if (kind !== "file" && kind !== "block" && kind !== "key") return null;
+  if (kind !== "file" && kind !== "block" && kind !== "key" && kind !== "hook") return null;
   if (typeof path !== "string" || path === "") return null;
   return { kind, path, at: typeof row["at"] === "string" ? row["at"] : null };
 }

@@ -56,8 +56,8 @@ describe("cli/application/commands/install", () => {
     assert.deepEqual(report.platforms, ["claude"]);
     assert.equal(report.scope, "project");
     assert.deepEqual(
-      report.changes.map((change) => change.path),
-      [join(cwd, ".mcp.json"), join(cwd, "CLAUDE.md")],
+      [...new Set(report.changes.map((change) => change.path))],
+      [join(cwd, ".mcp.json"), join(cwd, "CLAUDE.md"), join(cwd, ".claude", "settings.json")],
     );
     assert.match(result.human, /connected claude \(project scope\)/);
   });

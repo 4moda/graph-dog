@@ -277,13 +277,26 @@ export interface ArchiveReportDto extends ResponseEnvelope {
   readonly warnings: readonly WarningDto[];
 }
 
+/**
+ * Several corpora built in one command.
+ *
+ * A separate kind rather than a `corpus: null` variant of `build_report`, so a
+ * caller reading one report never has to check whether it is really a list.
+ */
+export interface BuildReportsDto extends ResponseEnvelope {
+  readonly kind: "build_reports";
+  /** `partial` when any one of them was. */
+  readonly status: "ok" | "partial";
+  readonly reports: readonly BuildReportDto[];
+}
+
 /** One file, configuration key or marker block an install or uninstall touched. */
 export interface IntegrationChangeDto {
   /** `absent` is a removal that found nothing; `unchanged` an install that had nothing to write. */
   readonly action: "created" | "updated" | "removed" | "unchanged" | "absent";
-  readonly kind: "file" | "block" | "key";
+  readonly kind: "file" | "block" | "key" | "hook";
   readonly path: string;
-  /** The marker name for a block, the dotted property path for a key, null for a whole file. */
+  /** The marker name for a block, the dotted property path for a key or hook, null for a whole file. */
   readonly at: string | null;
 }
 

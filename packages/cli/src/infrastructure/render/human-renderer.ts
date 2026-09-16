@@ -13,6 +13,7 @@
 import type {
   ArchiveReportDto,
   BuildReportDto,
+  BuildReportsDto,
   CorpusInfoDto,
   CorpusListDto,
   EvaluationDeltaDto,
@@ -574,6 +575,21 @@ function wrap(text: string, width: number, indent: string): string {
   }
   if (current !== "") lines.push(current);
   return lines.join(`\n${indent}`);
+}
+
+/**
+ * Several corpora built in one command.
+ *
+ * Each report is named, which a single build does not need to be -- there the
+ * reader knows which corpus they asked for, and here they do not.
+ */
+export function renderBuildReports(
+  report: BuildReportsDto,
+  options: RenderOptions = defaultRenderOptions(),
+): string {
+  return report.reports
+    .map((one) => `${paint(options, "bold", one.corpus)}  ${renderBuildReport(one, options)}`)
+    .join("");
 }
 
 /**

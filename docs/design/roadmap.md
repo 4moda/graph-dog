@@ -19,8 +19,8 @@ product and the way it is installed, not its feature list.
 - Portable archives: `export` and `import` of a verified `.gdog` file
 - CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`, `eval`,
   `export`, `import`, `install`, `uninstall`
-- Agent integration: MCP registration and instructions for Claude Code, GitHub
-  Copilot and Kiro, written from a ledger and removable from it
+- Agent integration: MCP registration, instructions and refresh hooks for Claude
+  Code, GitHub Copilot and Kiro, written from a ledger and removable from it
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
 - Compatibility gate, freshness reporting, auditable exclusions and failures
 - Fusion that lets each signal do only what it knows: the graph adds candidates
@@ -306,27 +306,31 @@ added, updated in 2.5 s, gives a database identical to the 110 s rebuild across
 all 1,277,182 rows of documents, chunks, vectors, postings, term frequencies,
 nodes, edges and neighbour lists.
 
-**What is left here** is the thing this unblocks: the index keeping itself
-current, triggered through each agent's own mechanism. Part of `install`
-(item 2), not a command of its own, and designed in
-[Distribution and lifecycle](distribution.md#keeping-the-index-current).
+**Built:** the index keeps itself current, triggered through each agent's own
+mechanism. Part of `install`, not a command of its own.
 
 - **Claude Code: hooks.** `SessionStart` when a session opens, `Stop` when a
-  turn ends. Deterministic, and costs no tokens.
-- **Kiro: its agent hooks**, at the same two moments.
+  turn ends, written into `.claude/settings.json` beside whatever else hooks
+  those events. Deterministic, and costs no tokens.
 - **Copilot: instructions**, because it has no hook mechanism. Every search
   already reports the corpus's freshness, so the rule is about an observable
   fact: if a search says stale, refresh and search again.
+- **Git hooks: opt-in**, `--git-hooks`, for using GraphDog outside an agent,
+  marker-delimited so an existing hook script keeps its own lines.
+- The command is `graphdog update --all --quiet || true` -- `--all` added with
+  it, because refreshing the first of three corpora is the silent staleness the
+  trigger exists to prevent.
+
+**Still to do here:**
+
+- **Kiro's agent hooks.** Which of its events correspond to `SessionStart` and
+  `Stop` is unconfirmed, and a guess would be a hook that silently never fires.
 - **A tool the instruction can name.** Split `build_corpus` -- `update_corpus`,
   incremental only, exposed by default; `full` stays behind `--allow-write`.
-- **Git hooks: opt-in**, `--git-hooks`, for using GraphDog outside an agent.
-  Not installed by `--platform`: `SessionStart` already covers a pull between
-  sessions; one action fires several hooks (amend, rebase, a pull that rebases)
-  so the same work is paid repeatedly; a hook runs in whatever shell and `PATH`
-  the caller has, which across Windows, WSL and GUI git clients is often not one
-  that can find `graphdog` at all -- and failing to find it is a silent failure
-  to refresh; `.git/hooks` is uncommittable and routinely taken over by husky or
-  lefthook; and it covers nothing for a corpus that is not a git tree.
+- **Writing a hook manager's configuration.** husky, lefthook and pre-commit are
+  detected and the install refuses, naming the line to add; writing it for them
+  is still manual.
+
 
 **Not a file watcher.** A watcher is a daemon to start, supervise and stop, and
 it fires on saves that mean nothing -- an editor's swap file, a half-written

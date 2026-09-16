@@ -163,6 +163,7 @@ export type { CorpusContext, OpenCorpusOptions } from "./composition/corpus-cont
 export { exportCorpusArchive, importCorpusArchive } from "./composition/corpus-archive.ts";
 export type { ExportArchiveOptions, ImportArchiveOptions } from "./composition/corpus-archive.ts";
 export {
+  GIT_HOOKS,
   installAgentIntegration,
   knownPlatforms,
   uninstallAgentIntegration,

@@ -40,10 +40,31 @@ export interface InstructionTarget {
   readonly own: boolean;
 }
 
+/**
+ * Where an agent keeps the hooks it runs, and which events GraphDog wants.
+ *
+ * `SessionStart` and `Stop`: the two moments the tree has reached a state worth
+ * indexing. `SessionStart` catches the pull, the branch switch and the editing
+ * somebody did between sessions, before the first search of this one reads the
+ * index; `Stop` catches what the agent itself just changed. Not a `PostToolUse`
+ * on every edit, which would run several updates inside one turn and make the
+ * agent wait for each.
+ */
+export interface HookTarget {
+  readonly file: string;
+  /** The container of hook lists, e.g. `hooks`. */
+  readonly container: string;
+  readonly events: readonly string[];
+}
+
 export interface PlatformTargets {
   readonly mcp: McpTarget;
   readonly instructions: InstructionTarget;
+  /** Null where the platform has no hook mechanism; the instructions carry the freshness rule instead. */
+  readonly hooks: HookTarget | null;
 }
+
+const CLAUDE_HOOK_EVENTS = ["SessionStart", "Stop"] as const;
 
 export interface AgentPlatform {
   readonly id: string;
@@ -62,10 +83,12 @@ const CLAUDE: AgentPlatform = {
     // One file that several tools write to -- code-review-graph has its own
     // section in this repository's -- so a marker block, never the whole file.
     instructions: { file: "CLAUDE.md", own: false },
+    hooks: { file: join(".claude", "settings.json"), container: "hooks", events: [...CLAUDE_HOOK_EVENTS] },
   },
   user: {
     mcp: { file: ".claude.json", container: "mcpServers" },
     instructions: { file: join(".claude", "CLAUDE.md"), own: false },
+    hooks: { file: join(".claude", "settings.json"), container: "hooks", events: [...CLAUDE_HOOK_EVENTS] },
   },
   unsupported: {},
 };
@@ -76,6 +99,9 @@ const COPILOT: AgentPlatform = {
   project: {
     mcp: { file: join(".vscode", "mcp.json"), container: "servers" },
     instructions: { file: join(".github", "instructions", "graphdog.instructions.md"), own: true },
+    // No hook mechanism, so the instruction file's freshness rule is the whole
+    // of it -- which works because every search reports whether it is stale.
+    hooks: null,
   },
   user: null,
   unsupported: {
@@ -89,6 +115,10 @@ const KIRO: AgentPlatform = {
   project: {
     mcp: { file: join(".kiro", "settings", "mcp.json"), container: "mcpServers" },
     instructions: { file: join(".kiro", "steering", "graphdog.md"), own: true },
+    // Kiro has agent hooks; which of its events correspond to SessionStart and
+    // Stop is not confirmed, and writing a guess would be a hook that silently
+    // never fires.
+    hooks: null,
   },
   // Kiro's steering is a property of a project, so a user-scope install would
   // register the server and then have nowhere to say what it is for.
@@ -140,6 +170,17 @@ export function mcpServerEntry(options: { allowWrite: boolean }): JsonObject {
     args: options.allowWrite ? ["--allow-write"] : [],
   };
 }
+
+/**
+ * What a trigger runs.
+ *
+ * `--all`, because a search may reach any corpus visible from here and a
+ * refresh that took the first of three would be the silent staleness the
+ * trigger exists to prevent. `--quiet` because nobody asked to see it, and
+ * `|| true` because an index that could not be refreshed must not fail the
+ * commit or end the agent's turn in an error.
+ */
+export const UPDATE_COMMAND = "graphdog update --all --quiet || true";
 
 /**
  * What GraphDog tells the agent about itself.
