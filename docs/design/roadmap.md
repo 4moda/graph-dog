@@ -232,14 +232,59 @@ they are the ones to work on:
 - **Ranking by domain.** MRR is 0.617 for retail and 0.648 for finance against
   0.894 for manufacturing; the harder domains are the ones whose answers are
   spread over long documents.
-- **Below plain BM25 on SciFact.** A trial on the public SciFact set scored
-  nDCG@10 0.559 with the default fused pipeline, against 0.665 published for
-  BM25 alone. Whether fusion with the hashing embedder and the graph drags BM25
-  down, or GraphDog's BM25 differs from the standard one, is not yet known.
+- **Fusion is the problem, and BM25 is not.** Running each signal separately on
+  three corpora (nDCG; BM25 alone, then with one signal added, then the default):
 
-Each is re-measured before anyone acts on it.
+  | corpus | BM25 | + dense | + graph | default |
+  |---|---|---|---|---|
+  | SciFact, 5,183 documents (k=10) | **0.645** | 0.560 | 0.644 | 0.559 |
+  | allganize-ja, 15 PDFs (k=3) | **1.000** | 0.993 | 0.744 | 0.803 |
+  | GraphDog's own docs, 5 linked files (k=10) | **0.764** | 0.764 | 0.572 | 0.633 |
 
-### 4. Edge provenance
+  GraphDog's BM25 is sound: 0.645 against 0.665 published for BM25 on SciFact,
+  a gap chunking and tokenization explain. What costs the default its quality is
+  fusing the other two signals at full weight:
+
+  - the **hashing embedder** ranks far worse than BM25 and is fused as an equal,
+    which on SciFact costs 0.085 nDCG and misses 17 more queries;
+  - the **graph** flips the top two whenever a document has a weak direct hit
+    and an edge: a second-place BM25 hit plus a first-place graph rank outscores
+    a first-place BM25 hit. On small corpora, where a directory or a tag joins
+    everything, that happens constantly.
+
+  The graph does earn its place on recall -- on the linked docs it found the one
+  document BM25 missed (recall 0.944 to 1.000) -- so the fix is not to remove it
+  but to stop it outranking direct evidence: weight by how much a signal knows,
+  let the graph add candidates below the direct hits rather than reorder them,
+  and reconsider fusing a non-semantic embedder at all.
+
+This is the first thing to work on: it is measured, it affects every query, and
+three suites can judge a fix.
+
+### 4. Make an update cost what changed
+
+`graphdog update` already gives the right answer -- a test now proves an
+incremental update leaves exactly what a full rebuild would, down to chunk ids,
+BM25 statistics and every edge -- but it costs nearly as much as one. On a
+5,183-document corpus:
+
+| | |
+|---|---|
+| update with nothing changed | 145 s |
+| update after one document changed | 147 s |
+| full rebuild | 167 s |
+
+Every update recomputes the similarity edges over all chunks, which is quadratic
+in the corpus, and the BM25 statistics with them. Changing one file should cost
+what that file costs: keep the neighbour lists, recompute them for the chunks
+that were added, refill the ones that pointed at chunks that went, and update the
+statistics incrementally. The result must stay identical to a rebuild, which is
+what the new test is for.
+
+Until this lands, a file-watcher or a post-commit hook is not worth having: it
+would spend two minutes of a machine's time on every save.
+
+### 5. Edge provenance
 
 Label every edge `extracted` -- written in the source: a link, a tag, a
 directory, and later a call -- or `inferred` -- computed: `similar` edges today,
@@ -263,7 +308,8 @@ before any model-derived edge does.
   and never a call graph of GraphDog's own: code structure is those tools' job.
 - **Keeping the index current unasked** -- `graphdog watch`, and a post-commit
   and post-checkout hook that runs `update`, installed and removed through the
-  same ledger as any integration.
+  same ledger as any integration. Worth building once item 4 makes an update
+  proportional to what changed.
 - **Opt-in LLM enrichment** -- concept nodes, inferred edges and community names
   from a configured model, as a separate build stage (this absorbs "query
   expansion and optional LLM summarization"). Recorded in the corpus identity the
