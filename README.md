@@ -264,8 +264,12 @@ rebuild is not an incremental index.
 
 It also costs what changed. On a 5,183-document corpus an update with one
 document edited takes about 3 seconds against 106 for a rebuild, and one with
-nothing to do takes about 2 — the time to hash every file and find out. That is
-what makes a watcher or a commit hook worth having; both are on the
+nothing to do takes about 2 — the time to hash every file and find out.
+
+Cheap enough to run unconditionally, which is the point: the plan is to run it
+from hooks — a git `post-commit`, `post-merge`, `post-checkout`, and the agent's
+end-of-turn hook — rather than from a file watcher. The hook passes nothing
+about what changed; the update works it out. See the
 [roadmap](docs/design/roadmap.md).
 
 ## Packages

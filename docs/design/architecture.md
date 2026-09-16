@@ -233,8 +233,9 @@ builds of the same corpus produced different graphs. Nothing here is sampled.
 `similar` edges come from each chunk's nearest neighbours, and finding those is
 quadratic: on a 5,183-document corpus it was 140 of the 145 seconds an update
 took, whether or not a single file had changed. Everything else about an update
-was already proportional to the change; this was not, and it is what made a
-file-watcher or a commit hook unaffordable.
+was already proportional to the change; this was not, and it is what made
+running an update from a commit hook, or at the end of an agent's turn,
+unaffordable.
 
 The lists are therefore stored alongside the vectors, and an update recomputes
 only what the change can have reached:

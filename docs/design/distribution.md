@@ -154,6 +154,51 @@ check.
 - **Steer, never block.** No hook that stops an agent reading a file.
 - `--dry-run` shows every file and key it would write.
 
+### `graphdog install --hooks [--platform <name>] [--project]`
+
+Keeps the index current by running `graphdog update` at the moments the working
+tree is worth indexing. Nothing is passed about what changed: the update finds
+that out, and finding it out is the cheap part -- about two seconds on a
+5,000-document corpus with nothing to do, against three when a file changed.
+
+| Trigger | Where | Fires when |
+|---|---|---|
+| `post-commit` | `.git/hooks/post-commit` | a commit lands |
+| `post-merge` | `.git/hooks/post-merge` | a pull or merge brings files in |
+| `post-checkout` | `.git/hooks/post-checkout` | a branch switch changes the tree |
+| `post-rewrite` | `.git/hooks/post-rewrite` | a rebase or amend rewrites history |
+| agent turn end | Claude Code's `Stop` hook; Kiro's agent hooks | the agent finishes a turn, having edited files |
+
+**No file watcher.** A watcher is a daemon: another process to start, supervise
+and remember to stop, firing on saves that mean nothing -- an editor's swap
+file, a half-written line, a build directory -- and with no idea when the tree
+has reached a state worth indexing. Every trigger above is a moment where it
+has. The one thing a watcher offers that these do not is picking up an edit made
+outside git and outside an agent, and `graphdog update` run by hand covers that.
+
+**On the agent side, once per turn, not once per edit.** A `PostToolUse` hook on
+every `Edit` and `Write` would run an update several times inside one turn and
+make the agent wait for each. `Stop` fires once and has every edit of that turn
+behind it. Copilot has no equivalent today, so a Copilot project gets the git
+hooks only.
+
+- **Marker-delimited**, like the instruction blocks: GraphDog's lines go between
+  `# >>> graphdog` and `# <<< graphdog` in an existing hook script, so it
+  coexists with whatever else writes there, and uninstall removes exactly those
+  lines. A hook file GraphDog created and that is empty afterwards is deleted.
+- **A hook never fails the thing that triggered it.** The line is
+  `graphdog update --quiet || true`: a commit is not rejected, and an agent's
+  turn does not end in an error, because an index could not be refreshed.
+- **Concurrent triggers are safe.** An agent's `Stop` and a `post-commit` can
+  fire together; the corpus is WAL with a busy timeout, and two updates running
+  at once both complete and leave the same corpus.
+- **Managed by a repository's hook manager, if it has one.** husky, lefthook and
+  pre-commit own `.git/hooks` and would overwrite GraphDog's lines, so `install
+  --hooks` detects them, writes to their configuration instead, and `doctor`
+  reports which one is in charge.
+- Recorded in the same ledger as everything else, and removed by
+  `graphdog uninstall`.
+
 ### `graphdog uninstall [--platform <name>] [--project] [--purge]`
 
 Takes back what `install` wrote.
@@ -210,6 +255,7 @@ optional modules are resolved from there. Downloaded models move to
 | MCP registrations | `.mcp.json`, `.kiro/settings/mcp.json`, Copilot's MCP configuration | `graphdog uninstall` |
 | Instructions | GraphDog's own files (`.github/instructions/graphdog.instructions.md`, `.kiro/steering/graphdog.md`) and its block in `CLAUDE.md` | `graphdog uninstall` |
 | Git hooks, when that lands | `.git/hooks/*`, marker-delimited | `graphdog uninstall` |
+| Agent hooks, when that lands | the agent's own settings (Claude Code's `Stop` hook) | `graphdog uninstall` |
 | Ledger | `~/.graphdog/installed.json` | `graphdog uninstall`, last |
 | Home corpora, imported archives included | `~/.graphdog/corpora/` | `graphdog uninstall --purge` |
 | Extras and model cache | `~/.graphdog/extras/`, `~/.graphdog/models/` | `graphdog extras remove`, `--purge` |

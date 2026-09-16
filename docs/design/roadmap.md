@@ -61,7 +61,7 @@ lifecycle](distribution.md).
 | **Orientation** | a report of hub nodes, cross-module links and suggested questions; Leiden communities named by an LLM | `explore` (the graph neighbourhood around a query's hits), `suggested_queries` (from tags and headings), `status` (counts, freshness). No query-free overview, and no model anywhere in it | **Later, and small**: hub documents and top tags in `status` |
 | **Edge provenance** | every edge `EXTRACTED`, `INFERRED` or `AMBIGUOUS` | every edge explained in a phrase but unlabelled -- although `similar` edges are computed, which is to say inferred | **Adopt** |
 | **Citations** | file and line for code nodes | an exact line range on every hit, verbatim through `read` | GraphDog's reason to exist; the rule for everything new |
-| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update` that costs what changed and lands exactly where a rebuild would, freshness reporting, compatibility gate | **Item 4**: `watch` and a post-commit hook, installed and removed like any integration; no merge driver, since the index is never committed |
+| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update` that costs what changed and lands exactly where a rebuild would, freshness reporting, compatibility gate | **Item 4**: git and agent hooks that run `update`, installed and removed like any integration. No watcher, and no merge driver, since the index is never committed |
 | **Views and exports** | interactive HTML, Obsidian, GraphML, Neo4j, SVG, a wiki | none | **Later**: read-only exports of the store |
 | **Evaluation** | public benchmarks (LOCOMO n=300, LongMemEval-S n=50): recall and end-to-end QA accuracy, QA scored by an LLM judge validated against a second judge (90.6% agreement, kappa 0.81) | 15 hand-judged queries over its own docs; retrieval and citation metrics; a CI gate | **Both kinds are needed** -- item 1 |
 | **Privacy** | code stays local; other inputs go to the configured LLM backend unless that backend is local | nothing leaves the machine; the optional ONNX models embed and rerank text locally, and none of them generates any | keep |
@@ -288,15 +288,22 @@ added, updated in 2.5 s, gives a database identical to the 110 s rebuild across
 all 1,277,182 rows of documents, chunks, vectors, postings, term frequencies,
 nodes, edges and neighbour lists.
 
-**What is left here** is the thing this unblocks:
+**What is left here** is the thing this unblocks: the index keeping itself
+current, triggered by hooks rather than watched for.
 
-- **`graphdog watch`** -- a file watcher that debounces and runs an update.
-- **A post-commit and post-checkout hook**, installed and removed through the
-  same ledger as any other integration (item 2), so `graphdog uninstall` takes
-  it back out.
-- **Updating only named paths.** Two of the remaining seconds are spent hashing
-  every file in the corpus to find out that nothing changed. A hook already
-  knows which paths changed, and an update told them should not read the rest.
+- **Git hooks** -- `post-commit`, `post-merge`, `post-checkout`, `post-rewrite`,
+  each running `graphdog update`.
+- **An agent hook** -- Claude Code's `Stop`, so a turn that edited files leaves
+  the index current; once per turn, not once per edit.
+- Both installed and removed through the same ledger as any other integration
+  (item 2), so `graphdog uninstall` takes them back out. Designed in
+  [Distribution and lifecycle](distribution.md#graphdog-install---hooks---platform-name---project).
+
+**Not a file watcher.** A watcher is a daemon to start, supervise and stop, and
+it fires on saves that mean nothing -- an editor's swap file, a half-written
+line, a build directory. A hook fires when the tree has reached a state worth
+indexing. The hook passes nothing about what changed, either: the update finds
+out, and now that finding out is cheap, that is the whole design.
 
 ### 5. Edge provenance
 
