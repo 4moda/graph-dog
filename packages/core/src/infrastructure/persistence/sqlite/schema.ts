@@ -67,6 +67,16 @@ CREATE TABLE IF NOT EXISTS vectors (
 
 -- Document frequency per term, recomputed after each build. Kept as a table
 -- rather than derived per query so a search never scans the postings twice.
+-- Each chunk's nearest others, kept so an update recomputes only the lists a
+-- change can have reached rather than all of them. Derived data: dropping the
+-- table costs one slow build, never a wrong answer.
+CREATE TABLE IF NOT EXISTS neighbors (
+    chunk_id TEXT NOT NULL,
+    other_id TEXT NOT NULL,
+    score    REAL NOT NULL,
+    PRIMARY KEY (chunk_id, other_id)
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS terms (
     term TEXT PRIMARY KEY,
     df   INTEGER NOT NULL

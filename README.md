@@ -254,6 +254,20 @@ without them such pages come out empty. Skipped, and **recorded with a reason** 
 Secret exclusion is a heuristic floor, not a guarantee. It is not a substitute
 for keeping secrets out of the tree.
 
+### Keeping it up to date
+
+`graphdog update` re-indexes what changed, and **lands exactly where a full
+rebuild would** — same chunk ids, same BM25 statistics, same edges. That is
+asserted by a test that builds the same sources both ways and compares
+everything a query can reach, because an index you can only trust after a
+rebuild is not an incremental index.
+
+It also costs what changed. On a 5,183-document corpus an update with one
+document edited takes about 3 seconds against 106 for a rebuild, and one with
+nothing to do takes about 2 — the time to hash every file and find out. That is
+what makes a watcher or a commit hook worth having; both are on the
+[roadmap](docs/design/roadmap.md).
+
 ## Packages
 
 | Package | What it is |

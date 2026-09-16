@@ -24,7 +24,9 @@ product and the way it is installed, not its feature list.
 - Fusion that lets each signal do only what it knows: the graph adds candidates
   the direct signals missed and never reorders them; a non-semantic embedder is
   not ranked against the query at all
-- 1310+ tests, every source file with a colocated spec, including that an
+- Incremental updates that cost what changed: stored similarity neighbour lists,
+  refreshed only where a change can have reached them
+- 1340+ tests, every source file with a colocated spec, including that an
   incremental update leaves exactly what a full rebuild would
 
 ## What to take from Graphify
@@ -59,7 +61,7 @@ lifecycle](distribution.md).
 | **Orientation** | a report of hub nodes, cross-module links and suggested questions; Leiden communities named by an LLM | `explore` (the graph neighbourhood around a query's hits), `suggested_queries` (from tags and headings), `status` (counts, freshness). No query-free overview, and no model anywhere in it | **Later, and small**: hub documents and top tags in `status` |
 | **Edge provenance** | every edge `EXTRACTED`, `INFERRED` or `AMBIGUOUS` | every edge explained in a phrase but unlabelled -- although `similar` edges are computed, which is to say inferred | **Adopt** |
 | **Citations** | file and line for code nodes | an exact line range on every hit, verbatim through `read` | GraphDog's reason to exist; the rule for everything new |
-| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update`, freshness reporting, compatibility gate | **Later**: a post-commit hook, installed and removed like any integration; no merge driver, since the index is never committed |
+| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update` that costs what changed and lands exactly where a rebuild would, freshness reporting, compatibility gate | **Item 4**: `watch` and a post-commit hook, installed and removed like any integration; no merge driver, since the index is never committed |
 | **Views and exports** | interactive HTML, Obsidian, GraphML, Neo4j, SVG, a wiki | none | **Later**: read-only exports of the store |
 | **Evaluation** | public benchmarks (LOCOMO n=300, LongMemEval-S n=50): recall and end-to-end QA accuracy, QA scored by an LLM judge validated against a second judge (90.6% agreement, kappa 0.81) | 15 hand-judged queries over its own docs; retrieval and citation metrics; a CI gate | **Both kinds are needed** -- item 1 |
 | **Privacy** | code stays local; other inputs go to the configured LLM backend unless that backend is local | nothing leaves the machine; the optional ONNX models embed and rerank text locally, and none of them generates any | keep |
@@ -257,28 +259,44 @@ per document -- moved every metric on the built-in dataset at once:
 - **Nothing measures what the graph is for.** Its recall contribution shows up
   on one query of one suite. The graph suite in item 1 is what would price it.
 
-### 4. Make an update cost what changed
+### 4. Keeping the index current, unasked
 
-`graphdog update` already gives the right answer -- a test now proves an
-incremental update leaves exactly what a full rebuild would, down to chunk ids,
-BM25 statistics and every edge -- but it costs nearly as much as one. On a
-5,183-document corpus:
+**An update now costs what changed.** It always gave the right answer -- a test
+proves an incremental update leaves exactly what a full rebuild would, down to
+chunk ids, BM25 statistics and every edge -- but it cost nearly as much as one,
+because every update recomputed the similarity neighbours of every chunk against
+every other chunk. On the 5,183-document SciFact corpus that was 140 of the 145
+seconds, whether or not a single file had changed.
 
-| | |
-|---|---|
-| update with nothing changed | 145 s |
-| update after one document changed | 147 s |
-| full rebuild | 167 s |
+Two changes, described in [the architecture](architecture.md#an-update-costs-what-changed):
+the neighbour lists are stored and only the ones a change can have reached are
+recomputed, and the nearest few are now selected into a bounded list instead of
+scoring every chunk into a full one and sorting it to keep five.
 
-Every update recomputes the similarity edges over all chunks, which is quadratic
-in the corpus, and the BM25 statistics with them. Changing one file should cost
-what that file costs: keep the neighbour lists, recompute them for the chunks
-that were added, refill the ones that pointed at chunks that went, and update the
-statistics incrementally. The result must stay identical to a rebuild, which is
-what the new test is for.
+| on 5,183 documents / 12,110 chunks | before | after |
+|---|---|---|
+| update, nothing changed | 145 s | **2.1 s** |
+| update, one document changed | 147 s | **3.3 s** |
+| update, one document deleted | -- | **2.2 s** |
+| full rebuild | 167 s | **106 s** |
 
-Until this lands, a file-watcher or a post-commit hook is not worth having: it
-would spend two minutes of a machine's time on every save.
+The equivalence test is what makes this safe to have done, and it was extended
+with a fixture whose vectors really differ, since the old one embedded
+everything to the zero vector and so drew no similarity edges at all. The same
+claim was checked on the real corpus: one document edited, one deleted and one
+added, updated in 2.5 s, gives a database identical to the 110 s rebuild across
+all 1,277,182 rows of documents, chunks, vectors, postings, term frequencies,
+nodes, edges and neighbour lists.
+
+**What is left here** is the thing this unblocks:
+
+- **`graphdog watch`** -- a file watcher that debounces and runs an update.
+- **A post-commit and post-checkout hook**, installed and removed through the
+  same ledger as any other integration (item 2), so `graphdog uninstall` takes
+  it back out.
+- **Updating only named paths.** Two of the remaining seconds are spent hashing
+  every file in the corpus to find out that nothing changed. A hook already
+  knows which paths changed, and an update told them should not read the rest.
 
 ### 5. Edge provenance
 
@@ -302,10 +320,6 @@ before any model-derived edge does.
   function: either by reading symbol spans from a code-graph tool such as
   code-review-graph, or through an optional tree-sitter chunker. Never required,
   and never a call graph of GraphDog's own: code structure is those tools' job.
-- **Keeping the index current unasked** -- `graphdog watch`, and a post-commit
-  and post-checkout hook that runs `update`, installed and removed through the
-  same ledger as any integration. Worth building once item 4 makes an update
-  proportional to what changed.
 - **Opt-in LLM enrichment** -- concept nodes, inferred edges and community names
   from a configured model, as a separate build stage (this absorbs "query
   expansion and optional LLM summarization"). Recorded in the corpus identity the

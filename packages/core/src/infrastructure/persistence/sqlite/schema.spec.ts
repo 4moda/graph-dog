@@ -22,6 +22,7 @@ const EXPECTED_TABLES = [
   "exclusions",
   "failures",
   "meta",
+  "neighbors",
   "nodes",
   "postings",
   "sources",

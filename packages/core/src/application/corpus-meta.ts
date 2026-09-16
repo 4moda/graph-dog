@@ -16,6 +16,7 @@ export const CORPUS_META_KEYS = {
   chunkingFingerprint: "chunking_fingerprint",
   chunkingConfig: "chunking_config",
   chunkingSchemaVersion: "chunking_schema_version",
+  similarityStamp: "similarity_stamp",
   bm25ChunkCount: "bm25_chunk_count",
   bm25AverageLength: "bm25_average_length",
 } as const;

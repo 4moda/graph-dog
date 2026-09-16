@@ -199,6 +199,27 @@ The two rules together make the default equal to the best single signal on each
 suite, which is the floor a fusion has to clear before its extra signals can be
 argued for.
 
+### Derived data is stored when deriving it is the expensive part
+
+The graph is rebuilt wholesale at the end of every build, and that is the right
+default: it costs one pass and it cannot leave an orphan edge pointing at a
+document that is gone, which is the failure the predecessor's incremental
+GraphML updates actually hit.
+
+One input to it is not cheap. `similar` edges come from each chunk's nearest
+neighbours, and finding those is quadratic in the corpus. So the neighbour
+lists are stored, and an update recomputes only the lists a change can have
+reached -- the arrivals, and the survivors whose list named something that
+went. Everyone else is scored against the arrivals alone, which is sound
+because a stored list is still exactly its top-K over the chunks that remain.
+
+The rule this follows: cache a derivation only when you can say exactly what
+invalidates it. Here that is a stamp -- embedding model, neighbour count,
+starting chunk count -- checked before a single stored row is trusted, and an
+equivalence test that builds the same sources incrementally and from scratch
+and compares everything a query can reach. An incremental index you can only
+trust after a full rebuild is not an incremental index.
+
 ### Measurement before tuning
 
 Every ranking choice on this page is a judgment, and judgments about retrieval

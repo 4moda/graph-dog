@@ -113,6 +113,9 @@ Notable choices:
   rather than re-ranking whatever dense retrieval happened to return.
 - **The graph is derived and rebuilt wholesale** at the end of every build. That
   costs a pass and removes orphan edges pointing at deleted documents.
+- **The chunk neighbour lists are stored**, because deriving them is the one
+  quadratic step and rebuilding them was most of what an update cost. See
+  [an update costs what changed](#an-update-costs-what-changed).
 
 ## The query pipeline
 
@@ -224,6 +227,43 @@ because a tag on forty documents says nothing.
 
 The predecessor sampled random node pairs once a graph passed 500 nodes, so two
 builds of the same corpus produced different graphs. Nothing here is sampled.
+
+### An update costs what changed
+
+`similar` edges come from each chunk's nearest neighbours, and finding those is
+quadratic: on a 5,183-document corpus it was 140 of the 145 seconds an update
+took, whether or not a single file had changed. Everything else about an update
+was already proportional to the change; this was not, and it is what made a
+file-watcher or a commit hook unaffordable.
+
+The lists are therefore stored alongside the vectors, and an update recomputes
+only what the change can have reached:
+
+| | work |
+|---|---|
+| chunks that arrived | scanned against the whole corpus |
+| survivors whose list named a chunk that went | scanned against the whole corpus — what fills the hole may be a chunk the list never mentioned |
+| every other survivor | scored against the arrivals only; its stored list is still its top-K over what remains, so the new top-K can only come from that list plus what arrived |
+
+The last row is the corpus. An update that changed nothing asks for neither
+scan and never loads a vector.
+
+**The result is identical to a rebuild's, not close to it.** That is the whole
+requirement — an index you can only trust after a full rebuild is not an
+incremental index — and it is asserted directly: the same sources built two
+ways, compared document by document, chunk by chunk, posting by posting and
+edge by edge, for a change, an addition, a deletion, and for nothing at all.
+
+Checked on a real corpus as well as in the tests: 5,183 documents, one edited,
+one deleted, one added, updated in 2.5 seconds against 110 for the rebuild --
+and the two databases agree on all 1,277,182 rows of documents, chunks,
+vectors, postings, term frequencies, nodes, edges and neighbour lists.
+
+The stored lists are used only when a stamp says this build's embedding model,
+neighbour count and starting chunk count are the ones that wrote them. A corpus
+from an older GraphDog, or one built with similarity switched off, has no
+stamp and is recomputed once. They are derived data: deleting the table costs
+one slow build, never a wrong answer.
 
 ## Compatibility, not degradation
 

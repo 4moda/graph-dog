@@ -213,6 +213,12 @@ export class SqliteCorpusStore implements CorpusStore {
                (SELECT chunk_id FROM chunks WHERE ref IN (${marks}))`,
           )
           .run(...batch);
+        this.#db
+          .prepare(
+            `DELETE FROM neighbors WHERE chunk_id IN
+               (SELECT chunk_id FROM chunks WHERE ref IN (${marks}))`,
+          )
+          .run(...batch);
         this.#db.prepare(`DELETE FROM chunks WHERE ref IN (${marks})`).run(...batch);
         this.#db.prepare(`DELETE FROM documents WHERE ref IN (${marks})`).run(...batch);
       }
@@ -326,21 +332,66 @@ export class SqliteCorpusStore implements CorpusStore {
       return scored.slice(0, topK);
     },
 
-    neighbors: (chunkIds: readonly string[], topK: number): Map<string, Array<[string, number]>> => {
+    neighbors: (
+      chunkIds: readonly string[],
+      topK: number,
+      within?: readonly string[],
+    ): Map<string, Array<[string, number]>> => {
       const cache = this.#loadVectors();
       const position = new Map(cache.ids.map((id, index) => [id, index] as const));
       const out = new Map<string, Array<[string, number]>>();
+      if (topK <= 0) return out;
+
+      // Candidate positions once, not once per chunk: this loop runs for every
+      // chunk in the corpus on a full build, and the inner work is all that is
+      // left to pay for.
+      const candidates =
+        within === undefined
+          ? cache.ids.map((_, index) => index)
+          : within
+              .map((id) => position.get(id))
+              .filter((index): index is number => index !== undefined);
+
       for (const chunkId of chunkIds) {
         const index = position.get(chunkId);
         if (index === undefined) continue;
         const vector = cache.matrix[index];
         if (vector === undefined) continue;
-        out.set(
-          chunkId,
-          this.vectors.search(vector, topK + 1).filter(([id]) => id !== chunkId).slice(0, topK),
-        );
+        out.set(chunkId, topNeighbors(vector, chunkId, cache, candidates, topK));
       }
       return out;
+    },
+
+    storedNeighbors: (): { stamp: string; lists: Map<string, Array<[string, number]>> } => {
+      const lists = new Map<string, Array<[string, number]>>();
+      const rows = this.#db
+        .prepare("SELECT chunk_id, other_id, score FROM neighbors ORDER BY chunk_id, score DESC, other_id")
+        .all();
+      for (const row of rows) {
+        const chunkId = str(row["chunk_id"]);
+        const list = lists.get(chunkId);
+        const entry: [string, number] = [str(row["other_id"]), num(row["score"])];
+        if (list) list.push(entry);
+        else lists.set(chunkId, [entry]);
+      }
+      return { stamp: this.meta.get(CORPUS_META_KEYS.similarityStamp) ?? "", lists };
+    },
+
+    writeNeighbors: (
+      changed: ReadonlyMap<string, ReadonlyArray<readonly [string, number]>>,
+      removed: readonly string[],
+      stamp: string,
+    ): void => {
+      const drop = this.#db.prepare("DELETE FROM neighbors WHERE chunk_id = ?");
+      for (const chunkId of removed) drop.run(chunkId);
+      const insert = this.#db.prepare(
+        "INSERT OR REPLACE INTO neighbors (chunk_id, other_id, score) VALUES (?,?,?)",
+      );
+      for (const [chunkId, list] of changed) {
+        drop.run(chunkId);
+        for (const [otherId, score] of list) insert.run(chunkId, otherId, score);
+      }
+      this.meta.set(CORPUS_META_KEYS.similarityStamp, stamp);
     },
 
     size: (): number => num(this.#db.prepare("SELECT COUNT(*) AS n FROM vectors").get()?.["n"]),
@@ -678,4 +729,53 @@ function toEdge(row: Row): GraphEdge {
     kind: str(row["kind"]) as EdgeKind,
     weight: num(row["weight"]),
   };
+}
+
+/**
+ * The strongest `topK` candidates for one vector.
+ *
+ * Kept in a bounded, already-sorted array rather than scored into a full list
+ * and sorted afterwards. Sorting was what made building the similarity edges
+ * quadratic *and* slow: every chunk allocated one pair per chunk in the corpus
+ * and then sorted the lot to keep five of them.
+ *
+ * The order is `compareNeighbors`: score descending, ties on chunk id.
+ */
+function topNeighbors(
+  query: Float32Array,
+  selfId: string,
+  cache: { ids: string[]; matrix: Float32Array[] },
+  candidates: readonly number[],
+  topK: number,
+): Array<[string, number]> {
+  const best: Array<[string, number]> = [];
+  for (const index of candidates) {
+    const id = cache.ids[index];
+    const vector = cache.matrix[index];
+    if (id === undefined || vector === undefined || id === selfId) continue;
+    // A length mismatch means a corpus built with two models, which the
+    // compatibility gate refuses; scoring it would invent a relationship.
+    if (vector.length !== query.length) continue;
+
+    let dot = 0;
+    for (let j = 0; j < vector.length; j += 1) dot += (vector[j] ?? 0) * (query[j] ?? 0);
+
+    if (best.length === topK) {
+      const worst = best[topK - 1];
+      if (worst !== undefined && (dot < worst[1] || (dot === worst[1] && compareStrings(id, worst[0]) > 0))) {
+        continue;
+      }
+    }
+
+    let at = best.length;
+    while (at > 0) {
+      const previous = best[at - 1];
+      if (previous === undefined) break;
+      if (previous[1] > dot || (previous[1] === dot && compareStrings(previous[0], id) < 0)) break;
+      at -= 1;
+    }
+    best.splice(at, 0, [id, dot]);
+    if (best.length > topK) best.pop();
+  }
+  return best;
 }

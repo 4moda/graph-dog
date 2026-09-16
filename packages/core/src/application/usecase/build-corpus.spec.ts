@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
-import { InMemoryStore, StubEmbeddingModel } from "../../__fixtures__/in-memory-store.ts";
+import {
+  InMemoryStore,
+  StubEmbeddingModel,
+  WordVectorEmbeddingModel,
+} from "../../__fixtures__/in-memory-store.ts";
 import { ExtractionError } from "../../domain/errors.ts";
 import { defaultCorpusConfig, type CorpusConfig } from "../config.ts";
 import { CORPUS_META_KEYS } from "../corpus-meta.ts";
@@ -502,5 +506,138 @@ describe("application/usecase/buildCorpus: an update leaves what a rebuild would
     const rebuilt = new InMemoryStore();
     await buildCorpus({}, deps(rebuilt, new FakeSource({ ...before })));
     assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+  });
+
+  // The stub embedder above returns the zero vector, so no pair ever clears the
+  // similarity threshold and the tests either side of this one say nothing
+  // about `similar` edges -- which are the edges an incremental update reuses
+  // stored neighbour lists to avoid recomputing, and so the ones that can drift.
+  describe("with similarity edges that really exist", () => {
+    const similar = (store: InMemoryStore): string[] =>
+      store.graph
+        .neighborhood(store.documents.listRefs(), 500)
+        .edges.filter((edge) => edge.kind === "similar")
+        .map((edge) => `${edge.src}|${edge.dst}|${edge.weight}`)
+        .sort();
+
+    const withVectors = (store: InMemoryStore, source: FakeSource): BuildDependencies =>
+      deps(store, source, { embedding: new WordVectorEmbeddingModel() });
+
+    it("matches a rebuild after a file changes, one is added and one is deleted", async () => {
+      const updated = new InMemoryStore();
+      const source = new FakeSource({ ...before });
+      await buildCorpus({}, withVectors(updated, source));
+      source.files = { ...after };
+      await buildCorpus({}, withVectors(updated, source));
+
+      const rebuilt = new InMemoryStore();
+      await buildCorpus({}, withVectors(rebuilt, new FakeSource({ ...after })));
+
+      assert.ok(similar(rebuilt).length > 0, "the fixture must produce similarity edges to compare");
+      assert.deepEqual(similar(updated), similar(rebuilt));
+      assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+    });
+
+    it("matches a rebuild when only one document changed", async () => {
+      const updated = new InMemoryStore();
+      const source = new FakeSource({ ...before });
+      await buildCorpus({}, withVectors(updated, source));
+      source.files = { ...before, "notes.md": "# Notes\n\nThe cafeteria now serves JWKS rotation pie.\n" };
+      await buildCorpus({}, withVectors(updated, source));
+
+      const rebuilt = new InMemoryStore();
+      await buildCorpus({}, withVectors(rebuilt, new FakeSource({ ...source.files })));
+      assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+    });
+
+    it("matches a rebuild when nothing changed at all", async () => {
+      const updated = new InMemoryStore();
+      const source = new FakeSource({ ...before });
+      await buildCorpus({}, withVectors(updated, source));
+      await buildCorpus({}, withVectors(updated, source));
+
+      const rebuilt = new InMemoryStore();
+      await buildCorpus({}, withVectors(rebuilt, new FakeSource({ ...before })));
+      assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+    });
+
+    it("matches a rebuild after a document is only deleted", async () => {
+      // Deletion is the case stored lists cannot simply be merged into: the
+      // chunk that fills the hole may be one the list never mentioned.
+      const updated = new InMemoryStore();
+      const source = new FakeSource({ ...before });
+      await buildCorpus({}, withVectors(updated, source));
+      const { ["old.md"]: _dropped, ...remaining } = before;
+      source.files = { ...remaining };
+      await buildCorpus({}, withVectors(updated, source));
+
+      const rebuilt = new InMemoryStore();
+      await buildCorpus({}, withVectors(rebuilt, new FakeSource({ ...remaining })));
+      assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+    });
+
+    /** Record every vector-index scan a build asks for. */
+    function recordScans(store: InMemoryStore): Array<{ of: number; within: number | null }> {
+      const calls: Array<{ of: number; within: number | null }> = [];
+      const real = store.vectors.neighbors;
+      const patched = store.vectors as { neighbors: typeof real };
+      patched.neighbors = (ids, topK, within) => {
+        calls.push({ of: ids.length, within: within?.length ?? null });
+        return real(ids, topK, within);
+      };
+      return calls;
+    }
+
+    it("does no vector work at all when nothing changed", async () => {
+      const store = new InMemoryStore();
+      const source = new FakeSource({ ...before });
+      await buildCorpus({}, withVectors(store, source));
+
+      const calls = recordScans(store);
+      await buildCorpus({}, withVectors(store, source));
+      assert.deepEqual(calls, [], "an unchanged corpus should not be rescanned to reach the same lists");
+    });
+
+    it("scans the corpus only for the chunks a change can have reached", async () => {
+      // Wider than the fixture above on purpose: with five neighbours kept and
+      // four chunks in the corpus, every list names every other chunk and any
+      // deletion dirties all of them. The saving only appears once a corpus is
+      // larger than one chunk's neighbourhood, which is every real corpus.
+      const many: Record<string, string> = {};
+      for (let index = 0; index < 30; index += 1) {
+        many[`page-${index}.md`] = `# Page ${index}\n\nThis page is about subject ${index} and nothing else.\n`;
+      }
+      const store = new InMemoryStore();
+      const source = new FakeSource({ ...many });
+      await buildCorpus({}, withVectors(store, source));
+      const chunksBefore = store.chunks.count();
+
+      const calls = recordScans(store);
+      source.files = { ...many, "page-7.md": "# Page 7\n\nRewritten: this page is now about subject seven only.\n" };
+      await buildCorpus({}, withVectors(store, source));
+
+      const full = calls.filter((call) => call.within === null);
+      const scanned = full.reduce((total, call) => total + call.of, 0);
+      assert.ok(scanned > 0, "the arrivals do need a scan");
+      assert.ok(
+        scanned < chunksBefore,
+        `rescanned ${scanned} of ${chunksBefore} chunks; the stored lists exist to avoid that`,
+      );
+      // Everyone else is only scored against what arrived.
+      assert.ok(calls.some((call) => call.within !== null && call.within < chunksBefore));
+    });
+
+    it("rebuilds the lists when the embedding model changes under it", async () => {
+      const updated = new InMemoryStore();
+      const source = new FakeSource({ ...before });
+      await buildCorpus({}, deps(updated, source));
+      // A stored list from the stub embedder must not survive into a build with
+      // a model that scores differently, however little the sources changed.
+      await buildCorpus({ full: true }, withVectors(updated, source));
+
+      const rebuilt = new InMemoryStore();
+      await buildCorpus({}, withVectors(rebuilt, new FakeSource({ ...before })));
+      assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+    });
   });
 });

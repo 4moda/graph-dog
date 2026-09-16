@@ -24,6 +24,12 @@ import { countLines } from "../../domain/model/location.ts";
 import { ExtractionError, toGraphDogError } from "../../domain/errors.ts";
 import { chunkText, chunkingFingerprint } from "../../domain/service/chunker.ts";
 import { buildGraph, collapseChunkNeighbors } from "../../domain/service/graph-builder.ts";
+import {
+  SIMILARITY_NEIGHBORS,
+  mergeNeighbors,
+  neighborStamp,
+  planNeighborRefresh,
+} from "../../domain/service/similarity-index.ts";
 import type { CorpusConfig } from "../config.ts";
 import { WarningCode } from "../dto/contracts.ts";
 import type { Warning } from "../dto/mappers.ts";
@@ -252,6 +258,15 @@ export async function buildCorpus(
   // --- write ----------------------------------------------------------------
 
   const counts = store.transaction(() => {
+    // Taken before anything is deleted: the similarity refresh is described in
+    // terms of which chunks went and which arrived, and after the writes below
+    // there is no way to ask what went.
+    const goneRefs = [...deletedRefs, ...prepared.map((document) => document.candidate.ref)];
+    const removedChunkIds = goneRefs.flatMap((ref) =>
+      store.chunks.listByRef(ref).map((chunk) => chunk.chunkId),
+    );
+    const chunkCountBefore = store.chunks.count();
+
     if (deletedRefs.length > 0) {
       store.documents.remove(deletedRefs);
       store.meta.clearFailures(deletedRefs);
@@ -309,10 +324,24 @@ export async function buildCorpus(
 
     const similarities = config.graph.enableSimilarity
       ? collapseChunkNeighbors(
-          store.vectors.neighbors(store.chunks.listAllIds(), 5),
+          refreshSimilarityNeighbors({
+            store,
+            embeddingId: embedding.id,
+            addedChunkIds: allChunks.map((chunk) => chunk.chunkId),
+            removedChunkIds,
+            chunkCountBefore,
+            full: options.full === true,
+            logger,
+          }),
           store.chunks.ownerMap(),
         )
       : [];
+    if (!config.graph.enableSimilarity) {
+      // Nothing maintains the lists while the rule is off, so they must not be
+      // trusted when it is switched back on -- and they must not sit in the
+      // corpus, and in every archive of it, meaning nothing.
+      store.vectors.writeNeighbors(new Map(), [...store.chunks.listAllIds(), ...removedChunkIds], "");
+    }
 
     const graph = buildGraph(documents, similarities, config.graph);
     store.graph.replaceAll(graph.nodes, graph.edges);
@@ -372,6 +401,80 @@ export async function buildCorpus(
     elapsedSeconds: (clock.monotonicMs() - startedAt) / 1000,
     warnings,
   };
+}
+
+/**
+ * Bring the chunk neighbour lists up to date and return the complete set.
+ *
+ * The lists are what `similar` edges are made of, and computing them all is
+ * quadratic -- 140 of the 145 seconds an update took on a 5,000-document
+ * corpus, whether or not anything had changed. `planNeighborRefresh` decides
+ * which of them a change can actually have reached; everything else is read
+ * back from where the last build left it.
+ *
+ * The stored lists are used only when the stamp says this build's embedding
+ * model, neighbour count and starting chunk count are the ones that wrote them.
+ * A `--full` build ignores them by definition: it exists to rebuild from
+ * nothing but the sources.
+ */
+function refreshSimilarityNeighbors(input: {
+  store: CorpusStore;
+  embeddingId: string;
+  addedChunkIds: readonly string[];
+  removedChunkIds: readonly string[];
+  chunkCountBefore: number;
+  full: boolean;
+  logger: Logger;
+}): Map<string, ReadonlyArray<readonly [string, number]>> {
+  const { store, addedChunkIds, removedChunkIds } = input;
+  const topK = SIMILARITY_NEIGHBORS;
+
+  const allIds = store.chunks.listAllIds();
+  const added = new Set(addedChunkIds);
+  const survivors = allIds.filter((chunkId) => !added.has(chunkId));
+
+  const stored = store.vectors.storedNeighbors();
+  const usable =
+    !input.full && stored.stamp === neighborStamp(input.embeddingId, topK, input.chunkCountBefore);
+
+  const plan = usable
+    ? planNeighborRefresh(survivors, new Set(removedChunkIds), stored.lists)
+    : { recompute: survivors, merge: [] };
+
+  // A full scan of the corpus for the arrivals and for the survivors whose
+  // list lost an entry; for everyone else, only the arrivals. An update that
+  // changed nothing asks for neither, and so never loads a vector.
+  const empty = new Map<string, Array<[string, number]>>();
+  const scan = [...plan.recompute, ...addedChunkIds];
+  const fresh = scan.length > 0 ? store.vectors.neighbors(scan, topK) : empty;
+  const arrivals =
+    plan.merge.length > 0 && addedChunkIds.length > 0
+      ? store.vectors.neighbors(plan.merge, topK, addedChunkIds)
+      : empty;
+
+  const changed = new Map<string, ReadonlyArray<readonly [string, number]>>(fresh);
+  const complete = new Map<string, ReadonlyArray<readonly [string, number]>>(fresh);
+  let reused = 0;
+  for (const chunkId of plan.merge) {
+    const before = stored.lists.get(chunkId) ?? [];
+    const merged = mergeNeighbors(before, arrivals.get(chunkId) ?? [], topK);
+    complete.set(chunkId, merged ?? before);
+    if (merged === null) reused += 1;
+    else changed.set(chunkId, merged);
+  }
+
+  store.vectors.writeNeighbors(
+    changed,
+    removedChunkIds,
+    neighborStamp(input.embeddingId, topK, allIds.length),
+  );
+
+  input.logger.log("info", "similarity neighbours", {
+    scanned: plan.recompute.length + addedChunkIds.length,
+    merged: plan.merge.length - reused,
+    unchanged: reused,
+  });
+  return complete;
 }
 
 /**

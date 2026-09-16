@@ -272,6 +272,80 @@ describe("infrastructure/persistence/sqlite/sqliteCorpusStore", () => {
       );
       store.close();
     });
+
+    it("breaks neighbour ties the same way search does", async () => {
+      // A merged list and a recomputed one have to agree on which of two equal
+      // scores comes first, or an incremental update drifts from a rebuild.
+      const store = await freshStore();
+      store.documents.upsert(document());
+      for (const id of ["query", "zeta", "alpha"]) {
+        store.chunks.insert(chunk(id, "docs/a.md", id));
+        store.vectors.put(id, Float32Array.from([1, 0, 0]));
+      }
+      assert.deepEqual(
+        store.vectors.neighbors(["query"], 2).get("query")?.map(([id]) => id),
+        ["alpha", "zeta"],
+      );
+      store.close();
+    });
+
+    it("scores against only the candidates it is given", async () => {
+      const store = await freshStore();
+      store.documents.upsert(document());
+      const vectors: Record<string, number[]> = {
+        query: [1, 0, 0],
+        near: [0.9, 0.1, 0],
+        alsoNear: [0.8, 0.2, 0],
+      };
+      for (const [id, vector] of Object.entries(vectors)) {
+        store.chunks.insert(chunk(id, "docs/a.md", id));
+        store.vectors.put(id, Float32Array.from(vector));
+      }
+      assert.deepEqual(
+        store.vectors.neighbors(["query"], 5, ["alsoNear"]).get("query")?.map(([id]) => id),
+        ["alsoNear"],
+        "`near` scores higher but was not offered",
+      );
+      store.close();
+    });
+
+    it("stores and returns neighbour lists with the stamp that produced them", async () => {
+      const store = await freshStore();
+      store.vectors.writeNeighbors(
+        new Map([["c1", [["c2", 0.9], ["c3", 0.5]] as Array<[string, number]>]]),
+        [],
+        "model|5|2",
+      );
+      const stored = store.vectors.storedNeighbors();
+      assert.equal(stored.stamp, "model|5|2");
+      assert.deepEqual(stored.lists.get("c1"), [["c2", 0.9], ["c3", 0.5]]);
+      store.close();
+    });
+
+    it("reports no stamp for a corpus nothing wrote lists into", async () => {
+      const store = await freshStore();
+      const stored = store.vectors.storedNeighbors();
+      assert.equal(stored.stamp, "", "an empty stamp is what tells a build not to trust the rows");
+      assert.equal(stored.lists.size, 0);
+      store.close();
+    });
+
+    it("replaces a rewritten list rather than merging into it, and drops a removed one", async () => {
+      const store = await freshStore();
+      const lists = (entries: Array<[string, Array<[string, number]>]>) => new Map(entries);
+      store.vectors.writeNeighbors(
+        lists([["c1", [["c2", 0.9], ["c3", 0.5]]], ["gone", [["c1", 0.7]]]]),
+        [],
+        "s1",
+      );
+      store.vectors.writeNeighbors(lists([["c1", [["c4", 0.2]]]]), ["gone"], "s2");
+
+      const stored = store.vectors.storedNeighbors();
+      assert.deepEqual(stored.lists.get("c1"), [["c4", 0.2]], "the old entries must not survive");
+      assert.equal(stored.lists.has("gone"), false);
+      assert.equal(stored.stamp, "s2");
+      store.close();
+    });
   });
 
   describe("lexical index", () => {

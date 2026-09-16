@@ -45,7 +45,7 @@ export interface DocumentRepository {
   get(ref: string): SourceDocument | null;
   listRefs(): string[];
   upsert(document: SourceDocument): void;
-  /** Remove documents and every derived row: chunks, vectors, postings. */
+  /** Remove documents and every derived row: chunks, vectors, postings, neighbours. */
   remove(refs: readonly string[]): void;
   count(): number;
   countBySource(): Map<string, number>;
@@ -66,8 +66,34 @@ export interface VectorIndex {
   put(chunkId: string, vector: Float32Array): void;
   /** Top-k by cosine similarity. Vectors are stored normalized, so this is a dot product. */
   search(query: Float32Array, topK: number): Array<[string, number]>;
-  /** Nearest other chunks for each id, used when building similarity edges. */
-  neighbors(chunkIds: readonly string[], topK: number): Map<string, Array<[string, number]>>;
+  /**
+   * Nearest other chunks for each id, used when building similarity edges.
+   *
+   * `within` restricts the candidates to those chunks. An update uses it to ask
+   * "what do the chunks that just arrived do to this list" without rescanning
+   * the corpus for every chunk in it.
+   */
+  neighbors(
+    chunkIds: readonly string[],
+    topK: number,
+    within?: readonly string[],
+  ): Map<string, Array<[string, number]>>;
+  /**
+   * The neighbour lists the last build stored, and the stamp that produced
+   * them. An empty stamp means nothing stored them.
+   */
+  storedNeighbors(): { stamp: string; lists: Map<string, Array<[string, number]>> };
+  /**
+   * Replace the lists of `changed`, drop the lists of `removed`, record `stamp`.
+   *
+   * Chunks named in neither keep what they have, which is what makes an update
+   * cost what changed rather than what exists.
+   */
+  writeNeighbors(
+    changed: ReadonlyMap<string, ReadonlyArray<readonly [string, number]>>,
+    removed: readonly string[],
+    stamp: string,
+  ): void;
   size(): number;
   /** Drop any cached view after a write. */
   invalidate(): void;

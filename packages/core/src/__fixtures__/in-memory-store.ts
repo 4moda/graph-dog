@@ -28,6 +28,8 @@ export class InMemoryStore implements CorpusStore {
   readonly #documents = new Map<string, SourceDocument>();
   readonly #chunks = new Map<string, Chunk>();
   readonly #vectors = new Map<string, Float32Array>();
+  readonly #neighbors = new Map<string, Array<[string, number]>>();
+  #neighborStamp = "";
   readonly #postings = new Map<string, Map<string, number>>(); // term -> chunkId -> tf
   readonly #nodes = new Map<string, GraphNode>();
   #edges: GraphEdge[] = [];
@@ -104,17 +106,45 @@ export class InMemoryStore implements CorpusStore {
       scored.sort((a, b) => (b[1] === a[1] ? compareStrings(a[0], b[0]) : b[1] - a[1]));
       return scored.slice(0, topK);
     },
-    neighbors: (chunkIds: readonly string[], topK: number): Map<string, Array<[string, number]>> => {
+    neighbors: (
+      chunkIds: readonly string[],
+      topK: number,
+      within?: readonly string[],
+    ): Map<string, Array<[string, number]>> => {
+      const allowed = within === undefined ? null : new Set(within);
       const out = new Map<string, Array<[string, number]>>();
       for (const chunkId of chunkIds) {
         const vector = this.#vectors.get(chunkId);
         if (!vector) continue;
         out.set(
           chunkId,
-          this.vectors.search(vector, topK + 1).filter(([id]) => id !== chunkId).slice(0, topK),
+          this.vectors
+            .search(vector, this.#vectors.size)
+            .filter(([id]) => id !== chunkId && (allowed === null || allowed.has(id)))
+            .slice(0, Math.max(0, topK)),
         );
       }
       return out;
+    },
+    storedNeighbors: (): { stamp: string; lists: Map<string, Array<[string, number]>> } => ({
+      stamp: this.#neighborStamp,
+      lists: new Map(
+        [...this.#neighbors].map(([id, list]) => [id, list.map((entry): [string, number] => [...entry])]),
+      ),
+    }),
+    writeNeighbors: (
+      changed: ReadonlyMap<string, ReadonlyArray<readonly [string, number]>>,
+      removed: readonly string[],
+      stamp: string,
+    ): void => {
+      for (const chunkId of removed) this.#neighbors.delete(chunkId);
+      for (const [chunkId, list] of changed) {
+        this.#neighbors.set(
+          chunkId,
+          list.map((entry): [string, number] => [entry[0], entry[1]]),
+        );
+      }
+      this.#neighborStamp = stamp;
     },
     size: (): number => this.#vectors.size,
     invalidate: (): void => undefined,
@@ -315,5 +345,46 @@ export class StubEmbeddingModel implements EmbeddingModel {
 
   async embedQuery(text: string): Promise<Float32Array> {
     return Float32Array.from(this.#vectors.get(text) ?? [0, 0, 0]);
+  }
+}
+
+/**
+ * An embedder whose vectors actually depend on the words, without a model.
+ *
+ * `StubEmbeddingModel` returns the zero vector for anything it was not told
+ * about, which is exactly what a test asserting on one signal wants and
+ * exactly what a test about similarity edges cannot use: every pair scores 0
+ * and no edge is ever drawn. This hashes tokens into a handful of buckets and
+ * normalizes, so two chunks that share wording are genuinely near each other.
+ */
+export class WordVectorEmbeddingModel implements EmbeddingModel {
+  readonly id = "wordvec:v1:d8";
+  readonly dimensions = 8;
+  readonly semantic = true;
+  readonly minUsefulSimilarity = 0.15;
+
+  async embedDocuments(texts: readonly string[]): Promise<Float32Array[]> {
+    return texts.map((text) => this.#embed(text));
+  }
+
+  async embedQuery(text: string): Promise<Float32Array> {
+    return this.#embed(text);
+  }
+
+  #embed(text: string): Float32Array {
+    const vector = new Float32Array(this.dimensions);
+    for (const token of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+      if (token === "") continue;
+      let hash = 7;
+      for (let i = 0; i < token.length; i += 1) hash = (hash * 31 + token.charCodeAt(i)) >>> 0;
+      const bucket = hash % this.dimensions;
+      vector[bucket] = (vector[bucket] ?? 0) + 1;
+    }
+    let length = 0;
+    for (const value of vector) length += value * value;
+    length = Math.sqrt(length);
+    if (length === 0) return vector;
+    for (let i = 0; i < vector.length; i += 1) vector[i] = (vector[i] ?? 0) / length;
+    return vector;
   }
 }
