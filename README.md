@@ -267,10 +267,11 @@ document edited takes about 3 seconds against 106 for a rebuild, and one with
 nothing to do takes about 2 — the time to hash every file and find out.
 
 Cheap enough to run unconditionally, which is the point: the plan is to run it
-from hooks — a git `post-commit`, `post-merge`, `post-checkout`, and the agent's
-end-of-turn hook — rather than from a file watcher. The hook passes nothing
-about what changed; the update works it out. See the
-[roadmap](docs/design/roadmap.md).
+through each agent's own mechanism — Claude Code's `SessionStart` and `Stop`
+hooks where hooks exist, and where they do not, an instruction acting on the
+staleness every search response already reports. Not a file watcher, and not a
+git hook unless you ask for one. Nothing is passed about what changed; the
+update works it out. See the [roadmap](docs/design/roadmap.md).
 
 ## Packages
 

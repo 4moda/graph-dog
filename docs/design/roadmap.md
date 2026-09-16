@@ -61,7 +61,7 @@ lifecycle](distribution.md).
 | **Orientation** | a report of hub nodes, cross-module links and suggested questions; Leiden communities named by an LLM | `explore` (the graph neighbourhood around a query's hits), `suggested_queries` (from tags and headings), `status` (counts, freshness). No query-free overview, and no model anywhere in it | **Later, and small**: hub documents and top tags in `status` |
 | **Edge provenance** | every edge `EXTRACTED`, `INFERRED` or `AMBIGUOUS` | every edge explained in a phrase but unlabelled -- although `similar` edges are computed, which is to say inferred | **Adopt** |
 | **Citations** | file and line for code nodes | an exact line range on every hit, verbatim through `read` | GraphDog's reason to exist; the rule for everything new |
-| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update` that costs what changed and lands exactly where a rebuild would, freshness reporting, compatibility gate | **Item 4**: git and agent hooks that run `update`, installed and removed like any integration. No watcher, and no merge driver, since the index is never committed |
+| **Keeping current** | cache, `--update`, `watch`, git hooks, a merge driver for the committed `graph.json` | incremental `update` that costs what changed and lands exactly where a rebuild would, freshness reporting, compatibility gate | **Item 4**: each agent's own mechanism -- hooks where they exist, instructions where they do not -- running `update`. Git hooks opt-in; no watcher; no merge driver, since the index is never committed |
 | **Views and exports** | interactive HTML, Obsidian, GraphML, Neo4j, SVG, a wiki | none | **Later**: read-only exports of the store |
 | **Evaluation** | public benchmarks (LOCOMO n=300, LongMemEval-S n=50): recall and end-to-end QA accuracy, QA scored by an LLM judge validated against a second judge (90.6% agreement, kappa 0.81) | 15 hand-judged queries over its own docs; retrieval and citation metrics; a CI gate | **Both kinds are needed** -- item 1 |
 | **Privacy** | code stays local; other inputs go to the configured LLM backend unless that backend is local | nothing leaves the machine; the optional ONNX models embed and rerank text locally, and none of them generates any | keep |
@@ -289,21 +289,28 @@ all 1,277,182 rows of documents, chunks, vectors, postings, term frequencies,
 nodes, edges and neighbour lists.
 
 **What is left here** is the thing this unblocks: the index keeping itself
-current, triggered by hooks rather than watched for.
+current, triggered through each agent's own mechanism. Part of `install`
+(item 2), not a command of its own, and designed in
+[Distribution and lifecycle](distribution.md#keeping-the-index-current).
 
-- **Git hooks** -- `post-commit`, `post-merge`, `post-checkout`, `post-rewrite`,
-  each running `graphdog update`.
-- **An agent hook** -- Claude Code's `Stop`, so a turn that edited files leaves
-  the index current; once per turn, not once per edit.
-- Both installed and removed through the same ledger as any other integration
-  (item 2), so `graphdog uninstall` takes them back out. Designed in
-  [Distribution and lifecycle](distribution.md#graphdog-install---hooks---platform-name---project).
+- **Claude Code: hooks.** `SessionStart` when a session opens, `Stop` when a
+  turn ends. Deterministic, and costs no tokens.
+- **Kiro: its agent hooks**, at the same two moments.
+- **Copilot: instructions**, because it has no hook mechanism. Every search
+  already reports the corpus's freshness, so the rule is about an observable
+  fact: if a search says stale, refresh and search again.
+- **A tool the instruction can name.** Split `build_corpus` -- `update_corpus`,
+  incremental only, exposed by default; `full` stays behind `--allow-write`.
+- **Git hooks: opt-in**, `--git-hooks`, for using GraphDog outside an agent.
+  Not installed by `--platform`: `SessionStart` already covers a pull between
+  sessions, `.git/hooks` is uncommittable and routinely taken over by husky or
+  lefthook, and it covers nothing for a corpus that is not a git tree.
 
 **Not a file watcher.** A watcher is a daemon to start, supervise and stop, and
 it fires on saves that mean nothing -- an editor's swap file, a half-written
-line, a build directory. A hook fires when the tree has reached a state worth
-indexing. The hook passes nothing about what changed, either: the update finds
-out, and now that finding out is cheap, that is the whole design.
+line, a build directory. Every trigger above is a moment the tree is worth
+indexing. None of them passes anything about what changed: the update finds out,
+and now that finding out is cheap, that is the whole design.
 
 ### 5. Edge provenance
 

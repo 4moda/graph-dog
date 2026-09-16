@@ -154,48 +154,82 @@ check.
 - **Steer, never block.** No hook that stops an agent reading a file.
 - `--dry-run` shows every file and key it would write.
 
-### `graphdog install --hooks [--platform <name>] [--project]`
+### Keeping the index current
 
-Keeps the index current by running `graphdog update` at the moments the working
-tree is worth indexing. Nothing is passed about what changed: the update finds
-that out, and finding it out is the cheap part -- about two seconds on a
-5,000-document corpus with nothing to do, against three when a file changed.
+Part of `graphdog install --platform <name>`, not a separate step: connecting an
+agent and keeping the thing it searches current are the same job.
 
-| Trigger | Where | Fires when |
+The trigger is always the same -- run `graphdog update` -- and it is told nothing
+about what changed. The update works that out, and since it costs about two
+seconds on a 5,000-document corpus with nothing to do, working it out is cheaper
+than arranging to be told.
+
+**What differs is the mechanism, and it is whatever the platform actually has:**
+
+| Platform | Mechanism | What it does |
 |---|---|---|
-| `post-commit` | `.git/hooks/post-commit` | a commit lands |
-| `post-merge` | `.git/hooks/post-merge` | a pull or merge brings files in |
-| `post-checkout` | `.git/hooks/post-checkout` | a branch switch changes the tree |
-| `post-rewrite` | `.git/hooks/post-rewrite` | a rebase or amend rewrites history |
-| agent turn end | Claude Code's `Stop` hook; Kiro's agent hooks | the agent finishes a turn, having edited files |
+| Claude Code | hooks | `SessionStart` runs an update when a session opens; `Stop` runs one when a turn that may have edited files ends |
+| Kiro | agent hooks | the same two moments, through Kiro's own hook configuration (the exact events still to confirm) |
+| GitHub Copilot | instructions | no hook mechanism exists, so the instruction file tells the agent to refresh when GraphDog says the corpus is stale |
 
-**No file watcher.** A watcher is a daemon: another process to start, supervise
-and remember to stop, firing on saves that mean nothing -- an editor's swap
-file, a half-written line, a build directory -- and with no idea when the tree
-has reached a state worth indexing. Every trigger above is a moment where it
-has. The one thing a watcher offers that these do not is picking up an edit made
-outside git and outside an agent, and `graphdog update` run by hand covers that.
+**Where hooks exist, use hooks.** They are deterministic: they fire whether or
+not the agent thought to, and they cost no tokens. `Stop` rather than a
+`PostToolUse` on every `Edit` and `Write`, which would run several updates
+inside one turn and make the agent wait for each; `SessionStart` as well as
+`Stop`, because between two sessions a person pulls, switches branch and edits
+in an editor, and `Stop` alone would leave the first search of a session reading
+an index from last time.
 
-**On the agent side, once per turn, not once per edit.** A `PostToolUse` hook on
-every `Edit` and `Write` would run an update several times inside one turn and
-make the agent wait for each. `Stop` fires once and has every edit of that turn
-behind it. Copilot has no equivalent today, so a Copilot project gets the git
-hooks only.
+**Where they do not, steering is not a guess.** Every search response already
+carries the corpus's freshness, and a stale one carries a `stale_corpus`
+warning naming what changed. So the instruction is a rule about an observable
+fact, not a hope: *if a search says the corpus is stale, call `update_corpus`
+and search again.* Copilot gets that in
+`.github/instructions/graphdog.instructions.md`, and it is worth having on the
+hook platforms too, as the thing that catches a tree changed mid-turn.
 
-- **Marker-delimited**, like the instruction blocks: GraphDog's lines go between
-  `# >>> graphdog` and `# <<< graphdog` in an existing hook script, so it
-  coexists with whatever else writes there, and uninstall removes exactly those
-  lines. A hook file GraphDog created and that is empty afterwards is deleted.
-- **A hook never fails the thing that triggered it.** The line is
-  `graphdog update --quiet || true`: a commit is not rejected, and an agent's
-  turn does not end in an error, because an index could not be refreshed.
-- **Concurrent triggers are safe.** An agent's `Stop` and a `post-commit` can
-  fire together; the corpus is WAL with a busy timeout, and two updates running
-  at once both complete and leave the same corpus.
-- **Managed by a repository's hook manager, if it has one.** husky, lefthook and
-  pre-commit own `.git/hooks` and would overwrite GraphDog's lines, so `install
-  --hooks` detects them, writes to their configuration instead, and `doctor`
-  reports which one is in charge.
+That needs a tool an agent may call. `build_corpus` is behind `--allow-write`
+today, and should stay there: it takes `full`, which is minutes of work, and the
+gate exists so that a document an agent reads cannot talk it into rewriting the
+index. So **split it** -- `update_corpus`, incremental only, no arguments beyond
+the corpus name, exposed by default; `build_corpus` with `full` left behind the
+gate. The worst an injected instruction can then do is make the agent re-index
+its own configured sources, which changes nothing on disk.
+
+**Git hooks are an option, not the default.** `graphdog install --git-hooks`
+writes marker-delimited `post-commit`, `post-merge`, `post-checkout` and
+`post-rewrite` hooks for someone who uses GraphDog from a terminal rather than
+through an agent. They are not installed by `--platform`, for four reasons:
+
+- The consumer is the agent. An index needs to be current when an agent
+  searches, and the agent's own lifecycle says exactly when that is.
+- They duplicate coverage that `SessionStart` already has. A pull or a rebase
+  between sessions is picked up when the next session opens, which is before
+  anything reads the index.
+- `.git/hooks` is hostile ground: it cannot be committed, husky, lefthook and
+  pre-commit take it over, `--no-verify` skips it and some GUI clients never run
+  it. Every one of those is a silent failure to refresh.
+- They cover nothing for a corpus that is not a git working tree -- a folder of
+  PDFs, an imported archive.
+
+**No file watcher**, for the reasons a hook is better than one: a watcher is a
+daemon to start, supervise and remember to stop, and it fires on saves that mean
+nothing -- an editor's swap file, a half-written line, a build directory. Every
+trigger above is a moment where the tree has reached a state worth indexing.
+
+Common to all of them:
+
+- **A trigger never fails the thing that triggered it.** The command is
+  `graphdog update --quiet || true`: an agent's turn does not end in an error,
+  and a commit is not rejected, because an index could not be refreshed.
+- **Concurrent triggers are safe.** A `Stop` hook and a git hook can fire
+  together; the corpus is WAL with a busy timeout, and two updates running at
+  once both complete and leave the same corpus.
+- **Marker-delimited or its own key**, like the instruction blocks, so
+  uninstall removes exactly what was written and nothing beside it.
+- **A repository's hook manager wins.** husky, lefthook and pre-commit own
+  `.git/hooks`, so `--git-hooks` writes to their configuration instead, and
+  `doctor` reports which one is in charge.
 - Recorded in the same ledger as everything else, and removed by
   `graphdog uninstall`.
 
@@ -254,8 +288,8 @@ optional modules are resolved from there. Downloaded models move to
 | CLI and MCP server | Homebrew prefix, or npm's global directory | `brew uninstall` / `npm uninstall -g` |
 | MCP registrations | `.mcp.json`, `.kiro/settings/mcp.json`, Copilot's MCP configuration | `graphdog uninstall` |
 | Instructions | GraphDog's own files (`.github/instructions/graphdog.instructions.md`, `.kiro/steering/graphdog.md`) and its block in `CLAUDE.md` | `graphdog uninstall` |
-| Git hooks, when that lands | `.git/hooks/*`, marker-delimited | `graphdog uninstall` |
-| Agent hooks, when that lands | the agent's own settings (Claude Code's `Stop` hook) | `graphdog uninstall` |
+| Agent hooks, when that lands | the agent's own settings (Claude Code's `SessionStart` and `Stop`) | `graphdog uninstall` |
+| Git hooks, only if `--git-hooks` was asked for | `.git/hooks/*`, marker-delimited, or the hook manager's config | `graphdog uninstall` |
 | Ledger | `~/.graphdog/installed.json` | `graphdog uninstall`, last |
 | Home corpora, imported archives included | `~/.graphdog/corpora/` | `graphdog uninstall --purge` |
 | Extras and model cache | `~/.graphdog/extras/`, `~/.graphdog/models/` | `graphdog extras remove`, `--purge` |
@@ -300,10 +334,20 @@ brew untap 4moda/graphdog        # if nothing else comes from the tap
 - the tap is `4moda/homebrew-graphdog`
 - the first platforms are Claude Code, GitHub Copilot and Kiro
 - integration is a CLI command, `graphdog install --platform <name>`
+- keeping the index current uses each platform's own mechanism -- hooks where
+  they exist, instructions acting on reported staleness where they do not -- and
+  is part of `install`, not a step of its own
+- git hooks are opt-in (`--git-hooks`), for use outside an agent; there is no
+  file watcher
 
 ## Open decisions
 
 - where Copilot's MCP registration goes: VS Code's `.vscode/mcp.json`, Copilot
   CLI's configuration, or both
+- which Kiro agent-hook events correspond to Claude Code's `SessionStart` and
+  `Stop`
+- whether `SessionStart` should refresh before the session's first search or in
+  the background behind it: two seconds of latency when a session opens against
+  a first search that may read last session's index
 - whether `graphdog mcp` replaces the separate `graphdog-mcp` binary or sits
   beside it
