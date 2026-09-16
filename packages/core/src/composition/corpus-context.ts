@@ -150,12 +150,18 @@ export async function createEmbeddingModel(config: CorpusConfig): Promise<Embedd
 /**
  * Load the reranker, or report why there is none.
  *
+ * `config.rerank.enabled` is deliberately *not* consulted here. It says whether
+ * to rerank by default, not whether the model may be loaded, and conflating
+ * the two made `--rerank` a one-way switch: it could turn reranking off on a
+ * corpus that had it on, and could not turn it on at all. Whether to rerank is
+ * the caller's decision, and the caller only asks for a reranker when it has
+ * made it -- so a corpus with reranking off still never pays the model load.
+ *
  * A missing reranker is never fatal: search degrades to fusion order and
  * attaches a warning. Failing the whole query because an optional accuracy
  * improvement is unavailable would be the wrong trade.
  */
 async function loadReranker(config: CorpusConfig, logger: Logger): Promise<Reranker | null> {
-  if (!config.rerank.enabled) return null;
   try {
     return await TransformersReranker.load({ model: config.rerank.model });
   } catch (error) {

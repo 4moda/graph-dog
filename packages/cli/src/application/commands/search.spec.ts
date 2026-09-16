@@ -112,12 +112,23 @@ describe("cli/application/commands/search", () => {
     }
   });
 
-  it("warns rather than failing when reranking is requested but unavailable", async () => {
+  it("does not go looking for a reranker the query did not ask for", async () => {
+    // Loading a cross-encoder is a model load, and on a fresh machine a
+    // download. A corpus that does not rerank by default must not pay for one,
+    // so nothing is attempted and nothing is warned about.
+    //
+    // The other direction -- asked for and unavailable -- is asserted in
+    // `search-corpus.spec.ts`, where the reranker can be injected. Asserting it
+    // here would depend on whether the optional model happens to be installed
+    // on the machine running the tests.
     const root = await builtProject();
     try {
-      const response = (await search(root, ["JWKS", "--rerank"])).json as SearchResponseDto;
-      assert.ok(response.hits.length > 0, "search must still return results");
-      assert.ok(response.warnings.some((warning) => warning.code === "rerank_unavailable"));
+      for (const argv of [["JWKS"], ["JWKS", "--no-rerank"]]) {
+        const response = (await search(root, argv)).json as SearchResponseDto;
+        assert.ok(response.hits.length > 0);
+        assert.equal(response.strategy["rerank"], "off");
+        assert.ok(!response.warnings.some((warning) => warning.code === "rerank_unavailable"));
+      }
     } finally {
       await cleanup(root);
     }

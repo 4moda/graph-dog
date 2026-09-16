@@ -204,7 +204,20 @@ async function runSuite(suite, options) {
     const result = graphdog(args, workspace, env, true);
     if (result.status !== 0 && result.status !== GATE_FAILED) throw new Error(`${suite.name}: eval failed (exit ${result.status})`);
 
-    const written = JSON.parse(await readFile(report, "utf8"));
+    // `--out` passed through sends the report somewhere else, and reading the
+    // one this function asked for would then fail on a run that succeeded.
+    const outIndex = options.passthrough.indexOf("--out");
+    const actual = outIndex === -1 ? report : (options.passthrough[outIndex + 1] ?? report);
+    const written = JSON.parse(await readFile(actual, "utf8"));
+
+    // A search degrades gracefully when an optional part is missing, and says
+    // so in a warning. An evaluation must not: a run that quietly measured
+    // fusion order while reporting itself as a reranked one is worse than no
+    // number, because it compares against a baseline and passes.
+    const degraded = (written.warnings ?? []).find((warning) => warning.code === "rerank_unavailable");
+    if (has("--rerank") && degraded !== undefined) {
+      throw new Error(`${suite.name}: --rerank was asked for and no reranker ran: ${degraded.message}`);
+    }
     if (!json) process.stdout.write(breakdown(written));
 
     if (options.record && options.semantic) {

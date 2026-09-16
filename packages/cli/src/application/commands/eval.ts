@@ -112,7 +112,12 @@ export async function runEval(context: CommandContext): Promise<CommandResult> {
         config: corpus.config,
         embedding: corpus.embedding,
         freshness: corpus.freshness(),
-        reranker: await corpus.reranker(),
+        // Only when this run will use it: a model load for a configuration
+        // nobody asked to measure is pure cost.
+        reranker:
+          (rerankChoice(context).rerank ?? corpus.config.rerank.enabled)
+            ? await corpus.reranker()
+            : null,
         logger: corpus.logger,
       },
     );

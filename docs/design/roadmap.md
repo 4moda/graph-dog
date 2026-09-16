@@ -301,11 +301,39 @@ and refuses to guess when a passage was rewritten rather than moved.
   and neither has ever been measured here.
 - **Paraphrase misses its section.** On the docs suite the two paraphrase
   queries find every judged document and cite the wrong section in each.
-- **No semantic measurement.** Every number on this page is the hashing
-  embedder plus BM25. With dense retrieval now gated on `semantic`, the case for
-  a semantic default is a measurement nobody has taken -- and the 7 far-away
-  citation failures are exactly where it should show up. This is the next thing
-  to measure.
+**Measured since: neither the semantic model nor the reranker fixes citation.**
+`run-eval.mjs --semantic` and `--rerank` build and query a suite with each, and
+on the gating suite retrieval had no headroom to begin with -- recall, MRR and
+nDCG are all 1.000 on the lexical default -- so the only thing either could move
+was where the answer is cited from.
+
+| on `allganize-ja` (56 questions, k=3) | citation |
+|---|---|
+| lexical default | 0.768 |
+| `multilingual-e5-small` | 0.768 |
+| `bge-reranker-base` | 0.768 |
+
+Identical totals, and underneath them two different stories. The semantic model
+**fixed 4 of the 7 far-away failures** -- the +17, -20, -41 page misses, which is
+what it should be good at -- and broke 5 other questions, for no net change. It
+left 5 of the 6 off-by-one failures exactly where they were. The cross-encoder
+moved **nothing at all**: the same 13 questions fail identically, because the
+document already ranks first and reranking the shortlist does not change which
+chunk of it is cited.
+
+So the two groups want different things, and neither wants a better model:
+
+- **off-by-one** is a chunking artifact. Splitting on pages puts a heading on one
+  page and what it introduces on the next, and no embedder reaches across that.
+- **far-away** is genuine within-document ranking, where lexical and semantic
+  disagree question by question. Something that uses both, rather than either,
+  is the direction -- which is a fusion question, not a model question.
+
+On the docs suite, where retrieval *did* have headroom, the semantic model helps
+across the board: recall 0.911 to 0.933, MRR 0.744 to 0.817, nDCG 0.750 to 0.815,
+citation 0.591 to 0.619, and the one query that missed entirely now lands. That
+is the case for a semantic default on prose corpora; it is not a case for it
+fixing citations.
 - **Nothing measures what the graph is for.** Its recall contribution shows up
   on one query of one suite. The graph suite in item 1 is what would price it.
 

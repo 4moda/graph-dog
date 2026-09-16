@@ -142,14 +142,27 @@ describe("composition/corpusContext", () => {
       }
     });
 
-    it("returns no reranker when the corpus does not enable one", async () => {
+    it("does not load a reranker just because a corpus was opened", async () => {
+      // `reranker()` now always attempts the load when asked, because
+      // `rerank.enabled` says whether to rerank by default and not whether the
+      // model may be loaded -- conflating the two made `--rerank` a one-way
+      // switch that could only turn reranking off. What keeps that from costing
+      // a model load on every corpus is that opening one never asks.
       const project = join(root, "norerank");
       const workspace = await initProjectWorkspace(project);
       await saveCorpusConfig(corpusConfigPath(workspace, "demo"), config);
 
-      const corpus = await openCorpus({ corpus: "demo", cwd: project });
+      const messages: string[] = [];
+      const corpus = await openCorpus({
+        corpus: "demo",
+        cwd: project,
+        logger: { log: (_level, message) => messages.push(message) },
+      });
       try {
-        assert.equal(await corpus.reranker(), null);
+        assert.ok(
+          !messages.some((message) => message.includes("reranker")),
+          `opening a corpus touched the reranker: ${messages.join(" | ")}`,
+        );
       } finally {
         corpus.close();
       }

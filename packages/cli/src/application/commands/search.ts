@@ -132,7 +132,7 @@ async function runSingleCorpus(
 ): Promise<CommandResult> {
   const corpus = await openForQuery(context, name);
   try {
-    const dependencies = await dependenciesFor(corpus);
+    const dependencies = await dependenciesFor(corpus, wantsRerank(context, corpus));
 
     if (mode === "explore") {
       const outcome = await exploreCorpus(options, dependencies);
@@ -227,7 +227,7 @@ async function runAcrossCorpora(
               name: entry.name,
               scope: entry.scope,
               unavailable: null,
-              dependencies: await dependenciesFor(entry.context),
+              dependencies: await dependenciesFor(entry.context, wantsRerank(context, entry.context)),
             },
       );
     }
@@ -289,13 +289,18 @@ async function runAcrossCorpora(
  * One place, so the single-corpus and cross-corpus paths cannot drift in what
  * they hand the pipeline.
  */
-async function dependenciesFor(corpus: CorpusContext): Promise<SearchDependencies> {
+async function dependenciesFor(
+  corpus: CorpusContext,
+  wantsRerank = corpus.config.rerank.enabled,
+): Promise<SearchDependencies> {
   return {
     store: corpus.store,
     config: corpus.config,
     embedding: corpus.embedding,
     freshness: corpus.freshness(),
-    reranker: await corpus.reranker(),
+    // Asked for only when it will be used: loading a cross-encoder is a model
+    // load, and a corpus that does not rerank must not pay for one.
+    reranker: wantsRerank ? await corpus.reranker() : null,
     logger: corpus.logger,
   };
 }
@@ -303,6 +308,11 @@ async function dependenciesFor(corpus: CorpusContext): Promise<SearchDependencie
 
 function numeric<K extends string>(key: K, value: number | undefined): Record<K, number> | object {
   return value === undefined ? {} : ({ [key]: value } as Record<K, number>);
+}
+
+/** `--rerank`/`--no-rerank` if given, the corpus's own setting otherwise. */
+function wantsRerank(context: CommandContext, corpus: CorpusContext): boolean {
+  return rerankChoice(context).rerank ?? corpus.config.rerank.enabled;
 }
 
 function rerankChoice(context: CommandContext): { rerank?: boolean } {
