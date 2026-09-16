@@ -6,6 +6,9 @@
  *   npm run eval -- --suite allganize-ja           one suite
  *   npm run eval -- --suite allganize-ja --json    the machine-readable report
  *   npm run eval -- --suite allganize-ja --record  re-record that suite's baseline
+ *   npm run eval -- --suite allganize-ja --semantic  the same suite on a local
+ *                                                    semantic model, compared
+ *                                                    against no baseline
  *   npm run eval -- --list                         the suites there are
  *
  * Every other argument goes to `graphdog eval`.
@@ -36,12 +39,16 @@ const GATE_FAILED = 8;
 const BASELINE_KEYS = ["recall_at_k", "precision_at_k", "mrr", "ndcg_at_k", "evidence_accuracy", "evidence_checked"];
 
 function parseArguments(argv) {
-  const options = { suite: null, record: false, list: false, passthrough: [] };
+  const options = { suite: null, record: false, list: false, semantic: false, passthrough: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--suite") options.suite = argv[++index] ?? null;
     else if (argument === "--record") options.record = true;
     else if (argument === "--list") options.list = true;
+    // Build the suite's corpus with a local semantic model instead of the
+    // built-in lexical one. A different configuration measures a different
+    // thing, so it never compares against, or records, a baseline.
+    else if (argument === "--semantic") options.semantic = true;
     // Paths given for the report are relative to the repository, not to the
     // temporary workspace the evaluation runs in.
     else if (!argument.startsWith("-") && argument.endsWith(".json")) options.passthrough.push(resolve(REPO, argument));
@@ -153,7 +160,12 @@ async function runSuite(suite, options) {
   try {
     await materialize(suite, join(workspace, suite.corpus.source));
 
-    const init = graphdog(["init", suite.name, "--source", `./${suite.corpus.source}`], workspace, env, false);
+    const init = graphdog(
+      ["init", suite.name, "--source", `./${suite.corpus.source}`, ...(options.semantic ? ["--semantic"] : [])],
+      workspace,
+      env,
+      false,
+    );
     if (init.status !== 0) throw new Error(`${suite.name}: init failed\n${init.stderr}`);
     const build = graphdog(["build", "--quiet"], workspace, env, false);
     // A partial build indexed a different corpus from the one the baseline
@@ -181,7 +193,9 @@ async function runSuite(suite, options) {
       // A suite may set its own cutoff: with ten documents, recall@10 would be
       // 1.0 by construction and measure nothing.
       ...(suite.k === undefined || has("--top-k") || has("-k") ? [] : ["--top-k", String(suite.k)]),
-      ...(hasBaseline && !options.record && !has("--baseline") ? ["--baseline", baseline] : []),
+      ...(hasBaseline && !options.record && !options.semantic && !has("--baseline")
+        ? ["--baseline", baseline]
+        : []),
       "--out",
       report,
       ...options.passthrough,
@@ -193,6 +207,9 @@ async function runSuite(suite, options) {
     const written = JSON.parse(await readFile(report, "utf8"));
     if (!json) process.stdout.write(breakdown(written));
 
+    if (options.record && options.semantic) {
+      throw new Error("--record writes the baseline for the shipped configuration; drop --semantic");
+    }
     if (options.record) {
       let previous = {};
       try {

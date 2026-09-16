@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -189,6 +190,30 @@ describe("composition/doctor", () => {
   });
 
   describe("extras", () => {
+    it("sees a package whose exports hide its package.json", async () => {
+      // `@huggingface/transformers` does not list `./package.json` in its
+      // exports, so asking for that file fails with ERR_PACKAGE_PATH_NOT_EXPORTED
+      // while the package is perfectly well installed. Reporting semantic
+      // embeddings as missing on a machine that has them sends people to
+      // reinstall something they already have.
+      const { cwd } = await fresh();
+      const extras = find(await runDoctor({ cwd }), "extras");
+      const semantic = extras.find((finding) => finding.label === "semantic embeddings");
+      const present = (() => {
+        try {
+          createRequire(import.meta.url).resolve("@huggingface/transformers");
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      assert.equal(
+        semantic?.detail.includes("available"),
+        present,
+        "doctor must agree with whether the module resolves at all",
+      );
+    });
+
     it("lists each optional capability, and never calls a missing one a fault", async () => {
       // Working with none of them installed is the documented default.
       const { cwd } = await fresh();

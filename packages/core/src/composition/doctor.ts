@@ -104,9 +104,28 @@ async function inspectHome(): Promise<DoctorFinding[]> {
 
 function inspectExtras(): DoctorFinding[] {
   const resolve = createRequire(import.meta.url).resolve;
-  return EXTRAS.map((extra) => {
+
+  /**
+   * Is the package here?
+   *
+   * The bare specifier, not `<name>/package.json`: a package whose `exports`
+   * does not list `./package.json` -- `@huggingface/transformers` is one --
+   * fails that lookup with `ERR_PACKAGE_PATH_NOT_EXPORTED` while being
+   * perfectly well installed. Only "cannot find the module" means absent;
+   * every other refusal is the package declining to show that particular file.
+   */
+  const installed = (module: string): boolean => {
     try {
-      resolve(`${extra.module}/package.json`);
+      resolve(module);
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      return code !== "MODULE_NOT_FOUND" && code !== "ERR_MODULE_NOT_FOUND";
+    }
+  };
+
+  return EXTRAS.map((extra) => {
+    if (installed(extra.module)) {
       return {
         section: "extras" as const,
         label: extra.name,
@@ -114,17 +133,16 @@ function inspectExtras(): DoctorFinding[] {
         status: "ok" as const,
         remedy: null,
       };
-    } catch {
-      // Not installed is the documented default, not a fault: GraphDog works
-      // offline with none of them, and each says so when it is needed.
-      return {
-        section: "extras" as const,
-        label: extra.name,
-        detail: "not installed",
-        status: "ok" as const,
-        remedy: `npm install -g ${extra.module}`,
-      };
     }
+    // Not installed is the documented default, not a fault: GraphDog works
+    // offline with none of them, and each says so when it is needed.
+    return {
+      section: "extras" as const,
+      label: extra.name,
+      detail: "not installed",
+      status: "ok" as const,
+      remedy: `npm install -g ${extra.module}`,
+    };
   });
 }
 
