@@ -261,12 +261,19 @@ export interface QueryMetrics {
   readonly evidence: EvidenceAccuracy;
   readonly retrieved: number;
   readonly relevant: number;
+  /** What the dataset asked of this query: an answer, or a refusal. */
+  readonly expected: "answer" | "no_answer";
+  /** Whether search declined to answer. Correct for `no_answer`, a fault otherwise. */
+  readonly abstained: boolean;
 }
 
 export function scoreQuery(
   retrieved: readonly RetrievedItem[],
   judgments: readonly Judgment[],
   k: number,
+  // Defaulted so a caller that only measures ranking need not say so, and so
+  // the ordinary case reads the way it did before abstention was scored.
+  context: { expect?: "answer" | "no_answer"; abstained?: boolean } = {},
 ): QueryMetrics {
   const index = indexJudgments(judgments);
   return {
@@ -277,6 +284,8 @@ export function scoreQuery(
     evidence: evidenceAccuracy(retrieved, index, k),
     retrieved: dedupeByRef(retrieved).length,
     relevant: relevantRefs(index).size,
+    expected: context.expect ?? "answer",
+    abstained: context.abstained ?? false,
   };
 }
 
@@ -316,11 +325,31 @@ export interface AggregateMetrics {
   readonly zeroResultQueries: number;
   /** Queries where no relevant document was retrieved at any rank. */
   readonly missedQueries: number;
+  /** Queries the dataset says have no answer in this corpus. */
+  readonly noAnswerQueries: number;
+  /**
+   * Share of those the search correctly declined to answer.
+   *
+   * The metric an agent depends on and no ranking figure can see: returning
+   * the least-bad row for a question the corpus cannot answer is the failure
+   * that turns a search result into a wrong answer downstream.
+   */
+  readonly abstention: number | null;
+  /**
+   * Share of answerable queries the search refused anyway.
+   *
+   * Reported beside `abstention` because either alone is easy to make perfect:
+   * a search that refuses everything abstains 1.0, and one that never refuses
+   * has no false abstentions.
+   */
+  readonly falseAbstention: number | null;
 }
 
 export function aggregate(perQuery: readonly QueryMetrics[]): AggregateMetrics {
   const evidenceChecked = perQuery.reduce((sum, metrics) => sum + metrics.evidence.checked, 0);
   const evidenceCorrect = perQuery.reduce((sum, metrics) => sum + metrics.evidence.correct, 0);
+  const noAnswer = perQuery.filter((metrics) => metrics.expected === "no_answer");
+  const answerable = perQuery.filter((metrics) => metrics.expected === "answer" && metrics.relevant > 0);
 
   return {
     queries: perQuery.length,
@@ -336,5 +365,11 @@ export function aggregate(perQuery: readonly QueryMetrics[]): AggregateMetrics {
     evidenceChecked,
     zeroResultQueries: perQuery.filter((metrics) => metrics.retrieved === 0).length,
     missedQueries: perQuery.filter((metrics) => metrics.reciprocalRank === 0).length,
+    noAnswerQueries: noAnswer.length,
+    abstention: noAnswer.length === 0 ? null : noAnswer.filter((m) => m.abstained).length / noAnswer.length,
+    // Measured over the queries that could be measured: a query with no
+    // judgments says nothing about whether refusing it was wrong.
+    falseAbstention:
+      answerable.length === 0 ? null : answerable.filter((m) => m.abstained).length / answerable.length,
   };
 }

@@ -86,6 +86,9 @@ function toSummaryDto(
     evidence_checked: summary.evidenceChecked,
     zero_result_queries: summary.zeroResultQueries,
     missed_queries: summary.missedQueries,
+    no_answer_queries: summary.noAnswerQueries,
+    abstention: summary.abstention,
+    false_abstention: summary.falseAbstention,
     failed_queries: failedQueries,
     latency: latencyDto,
   };
@@ -132,13 +135,17 @@ export function baselineScoresFrom(report: unknown): GateScores {
     mrr: "mrr",
     ndcg: "ndcg_at_k",
     evidence: "evidence_accuracy",
+    abstention: "abstention",
+    false_abstention: "false_abstention",
   };
 
   const scores: Record<string, number | null> = {};
   for (const metric of GATED_METRICS) {
     if (!isGatedMetric(metric)) continue;
     const value = summary[keys[metric] as string];
-    scores[metric] = typeof value === "number" && Number.isFinite(value) ? value : null;
+    const read = typeof value === "number" && Number.isFinite(value) ? value : null;
+    // Stored as a rate, gated inverted, so that higher is better everywhere.
+    scores[metric] = metric === "false_abstention" && read !== null ? 1 - read : read;
   }
   return scores as unknown as GateScores;
 }

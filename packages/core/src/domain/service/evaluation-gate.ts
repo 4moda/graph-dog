@@ -14,7 +14,19 @@
 import type { AggregateMetrics } from "./metrics.ts";
 
 /** The metrics a gate may be set on, spelled as a caller would type them. */
-export const GATED_METRICS = ["recall", "precision", "mrr", "ndcg", "evidence"] as const;
+export const GATED_METRICS = [
+  "recall",
+  "precision",
+  "mrr",
+  "ndcg",
+  "evidence",
+  // Refusing a question the corpus cannot answer is a property worth defending
+  // against regression like any other, and it is the one an agent leans on
+  // hardest. `false_abstention` guards the other direction, because a search
+  // that refuses everything would score a perfect `abstention`.
+  "abstention",
+  "false_abstention",
+] as const;
 
 export type GatedMetric = (typeof GATED_METRICS)[number];
 
@@ -35,6 +47,9 @@ export interface GateScores {
   readonly mrr: number | null;
   readonly ndcg: number | null;
   readonly evidence: number | null;
+  readonly abstention: number | null;
+  /** Stored inverted -- 1 minus the rate -- so higher is better here as everywhere. */
+  readonly false_abstention: number | null;
 }
 
 export function gateScores(metrics: AggregateMetrics): GateScores {
@@ -44,6 +59,10 @@ export function gateScores(metrics: AggregateMetrics): GateScores {
     mrr: metrics.mrr,
     ndcg: metrics.ndcgAtK,
     evidence: metrics.evidenceAccuracy,
+    abstention: metrics.abstention,
+    // Inverted so that, like every other gated metric, higher is better and a
+    // fall below the baseline is the failure.
+    false_abstention: metrics.falseAbstention === null ? null : 1 - metrics.falseAbstention,
   };
 }
 

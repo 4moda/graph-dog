@@ -386,11 +386,28 @@ export function renderEvaluation(
         : `${ratio(summary.evidence_accuracy)} ${paint(options, "dim", `(${summary.evidence_checked} span(s) checked)`)}`,
     ],
   ];
-  const deltas = new Map((report.comparison ?? []).map((entry) => [entry.metric, entry]));
   const keys = ["recall", "precision", "mrr", "ndcg", "evidence"];
+
+  // Only where the dataset asked: a suite with no unanswerable questions should
+  // not show a blank row suggesting it measured something it did not.
+  if (summary.no_answer_queries > 0) {
+    rows.push([
+      "abstention",
+      `${ratio(summary.abstention)} ${paint(options, "dim", `(${summary.no_answer_queries} with no answer here)`)}`,
+    ]);
+    keys.push("abstention");
+    rows.push([
+      "false refusal",
+      `${ratio(summary.false_abstention)} ${paint(options, "dim", "(of the answerable ones; lower is better)")}`,
+    ]);
+    keys.push("false_abstention");
+  }
+
+  const deltas = new Map((report.comparison ?? []).map((entry) => [entry.metric, entry]));
+  const width = Math.max(14, ...rows.map(([label]) => label.length + 2));
   rows.forEach(([label, value], index) => {
     const delta = deltas.get(keys[index] ?? "");
-    lines.push(`  ${label.padEnd(14)}${value.padEnd(10)}${renderDelta(delta, options)}`);
+    lines.push(`  ${label.padEnd(width)}${value.padEnd(10)}${renderDelta(delta, options)}`);
   });
 
   lines.push(

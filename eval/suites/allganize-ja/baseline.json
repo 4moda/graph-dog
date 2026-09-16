@@ -5,6 +5,9 @@
     "mrr": 1,
     "ndcg_at_k": 1,
     "evidence_accuracy": 0.767857,
-    "evidence_checked": 56
+    "evidence_checked": 56,
+    "abstention": 0.6,
+    "false_abstention": 0,
+    "no_answer_queries": 10
   }
 }

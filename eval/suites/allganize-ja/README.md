@@ -10,6 +10,27 @@ people other than GraphDog's authors, and do not change when GraphDog's docs
 do; and because the questions were written by someone else, so they do not echo
 the documents' wording the way self-authored queries do.
 
+## Two kinds of question, from two places
+
+**The 56 `aj-*` questions are Allganize's**, with Allganize's judgments, and are
+what the retrieval and citation metrics are measured on.
+
+**The 10 `na-*` questions are GraphDog's own**, and ask about things none of
+these documents covers: quark confinement, sourdough, a cat's lifespan, the
+2030 budget, what a safety manager is paid. They carry `"expect": "no_answer"`
+and are scored only on whether search refused them -- the one thing an agent
+leans on that no ranking metric can see, and which went unmeasured until it
+turned out not to work at all.
+
+They are deliberately of two difficulties. Four are far away, in another
+subject or another language. Six are near: the right register, the right
+subject, a fact these particular documents do not carry. The near ones are
+where a search that has learned to look confident gets caught.
+
+Judging them needs no expertise in the documents, only the absence of an
+answer, so they do not carry the circularity that makes a self-authored
+relevance judgment weak.
+
 ## What is in it
 
 | File | What |

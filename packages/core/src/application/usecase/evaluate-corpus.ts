@@ -122,7 +122,9 @@ export async function evaluateCorpus(
       // Recorded from the last successful query: every query in a run uses the
       // same settings, and reporting them makes a stored report self-describing.
       strategy = outcome.strategy;
-      queries.push(evaluated(entry, toRetrieved(outcome.hits), k, Date.now() - startedAt, null));
+      queries.push(
+        evaluated(entry, toRetrieved(outcome.hits), k, Date.now() - startedAt, null, outcome.noEvidence),
+      );
     } catch (error) {
       const message = String(error);
       logger.log("warn", "evaluation query failed", { id: entry.id, error: message });
@@ -131,7 +133,9 @@ export async function evaluateCorpus(
         message: `query "${entry.id}" failed: ${message}`,
         details: { id: entry.id },
       });
-      queries.push(evaluated(entry, [], k, Date.now() - startedAt, message));
+      // A query that threw returned nothing, which is not the same as declining
+      // to answer: counting a crash as an abstention would flatter the metric.
+      queries.push(evaluated(entry, [], k, Date.now() - startedAt, message, false));
     }
   }
 
@@ -170,13 +174,14 @@ function evaluated(
   k: number,
   elapsedMs: number,
   error: string | null,
+  abstained: boolean,
 ): EvaluatedQuery {
   const found = new Set(retrieved.slice(0, k).map((item) => item.ref));
   return {
     id: entry.id,
     query: entry.query,
     note: entry.note,
-    metrics: scoreQuery(retrieved, entry.judgments, k),
+    metrics: scoreQuery(retrieved, entry.judgments, k, { expect: entry.expect, abstained }),
     elapsedMs,
     // Deduplicated in rank order: the report is about documents, and a repeated
     // ref is three chunks of one file, not three findings.

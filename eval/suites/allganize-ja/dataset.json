@@ -2,7 +2,7 @@
   "version": 1,
   "name": "allganize-ja",
   "corpus": "allganize-ja",
-  "description": "Questions from allganize/RAG-Evaluation-Dataset-JA (MIT, Allganize) at revision c3a756711f10, about 15 of its 65 documents. Each question is judged by the page that answers it. Questions whose answer sits in an image are left out: GraphDog extracts text and does not read images. Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph or a table.",
+  "description": "Questions from allganize/RAG-Evaluation-Dataset-JA (MIT, Allganize) at revision c3a756711f10, about 15 of its 65 documents. Each question is judged by the page that answers it. Questions whose answer sits in an image are left out: GraphDog extracts text and does not read images. Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph or a table. The aj-* questions and judgments are Allganize's; the na-* questions are GraphDog's own and ask about things these documents do not cover, scored on whether search refuses them.",
   "queries": [
     {
       "id": "aj-006",
@@ -675,6 +675,66 @@
           "page": 48
         }
       ]
+    },
+    {
+      "id": "na-001",
+      "query": "量子色力学におけるクォークの閉じ込めについて説明してください。",
+      "note": "no answer · far: a field the corpus has no words for",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-002",
+      "query": "How do I bake sourdough bread at home?",
+      "note": "no answer · far: another language, another world",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-003",
+      "query": "ギリシャ神話のオルフェウスが冥界に降りた理由は何ですか。",
+      "note": "no answer · far",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-004",
+      "query": "猫の平均寿命は何年ですか。",
+      "note": "no answer · far",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-005",
+      "query": "明日の東京の天気を教えてください。",
+      "note": "no answer · near-ish: Japanese, everyday register, and nothing here is about weather",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-006",
+      "query": "JavaScript のクロージャとは何か、具体例を挙げて説明してください。",
+      "note": "no answer · near: the IT documents are about policy, not programming",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-007",
+      "query": "この文書群の著者の個人的な連絡先を教えてください。",
+      "note": "no answer · near: asks for something a public document would never carry",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-008",
+      "query": "2030年の国家予算の総額はいくらになりますか。",
+      "note": "no answer · near: the register is exactly right and the fact is in the future",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-009",
+      "query": "安全管理者の月給の平均額はいくらですか。",
+      "note": "no answer · near: the corpus explains what a safety manager does, never what one is paid",
+      "expect": "no_answer"
+    },
+    {
+      "id": "na-010",
+      "query": "青果物の店舗における最適な照明の色温度は何ケルビンですか。",
+      "note": "no answer · near: the retail hygiene guide's subject, a question it does not answer",
+      "expect": "no_answer"
     }
   ]
 }

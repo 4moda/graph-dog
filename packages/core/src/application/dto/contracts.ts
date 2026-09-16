@@ -381,6 +381,12 @@ export interface EvaluationSummaryDto {
   readonly evidence_checked: number;
   readonly zero_result_queries: number;
   readonly missed_queries: number;
+  /** Queries the dataset says this corpus cannot answer. */
+  readonly no_answer_queries: number;
+  /** Share of those the search correctly declined; null when the dataset has none. */
+  readonly abstention: number | null;
+  /** Share of answerable queries the search refused anyway. Lower is better. */
+  readonly false_abstention: number | null;
   readonly failed_queries: number;
   readonly latency: EvaluationLatencyDto;
 }

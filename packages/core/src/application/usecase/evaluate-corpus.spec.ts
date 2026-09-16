@@ -5,6 +5,7 @@ import { InMemoryStore, StubEmbeddingModel } from "../../__fixtures__/in-memory-
 import { assessFreshness } from "../../domain/model/freshness.ts";
 import { defaultCorpusConfig, type CorpusConfig } from "../config.ts";
 import { WarningCode } from "../dto/contracts.ts";
+import { GATED_METRICS } from "../../domain/service/evaluation-gate.ts";
 import type { EvalDataset } from "../../infrastructure/config/eval-dataset.ts";
 import type { SearchDependencies } from "./search-corpus.ts";
 import { DEFAULT_EVAL_K, evaluateCorpus } from "./evaluate-corpus.ts";
@@ -57,7 +58,7 @@ function dataset(overrides: Partial<EvalDataset> = {}): EvalDataset {
     corpus: "test-corpus",
     description: "",
     queries: [
-      { id: "jwks", query: "JWKS", judgments: [{ ref: "docs/keys.md", grade: 3 }], note: null },
+      { id: "jwks", query: "JWKS", judgments: [{ ref: "docs/keys.md", grade: 3 }], note: null, expect: "answer" as const },
     ],
     ...overrides,
   };
@@ -79,7 +80,7 @@ describe("application/usecase/evaluateCorpus", () => {
             id: "lunch",
             query: "JWKS",
             judgments: [{ ref: "docs/unrelated.md", grade: 1 }],
-            note: null,
+            note: null, expect: "answer" as const,
           },
         ],
       });
@@ -104,7 +105,7 @@ describe("application/usecase/evaluateCorpus", () => {
         {
           dataset: dataset({
             queries: [
-              { id: "rot", query: "rotation", judgments: [{ ref: "docs/rotation.md", grade: 1 }], note: null },
+              { id: "rot", query: "rotation", judgments: [{ ref: "docs/rotation.md", grade: 1 }], note: null, expect: "answer" as const },
             ],
           }),
         },
@@ -116,7 +117,7 @@ describe("application/usecase/evaluateCorpus", () => {
 
     it("carries the query's note into the report", async () => {
       const noted = dataset({
-        queries: [{ id: "jwks", query: "JWKS", judgments: [], note: "paraphrase check" }],
+        queries: [{ id: "jwks", query: "JWKS", judgments: [], note: "paraphrase check", expect: "answer" as const }],
       });
       const report = await evaluateCorpus({ dataset: noted }, deps());
       assert.equal(report.queries[0]?.note, "paraphrase check");
@@ -181,9 +182,9 @@ describe("application/usecase/evaluateCorpus", () => {
 
       const three = dataset({
         queries: [
-          { id: "a", query: "JWKS", judgments: [{ ref: "docs/keys.md", grade: 1 }], note: null },
-          { id: "b", query: "tokens", judgments: [{ ref: "docs/token.md", grade: 1 }], note: null },
-          { id: "c", query: "lunch", judgments: [{ ref: "docs/unrelated.md", grade: 1 }], note: null },
+          { id: "a", query: "JWKS", judgments: [{ ref: "docs/keys.md", grade: 1 }], note: null, expect: "answer" as const },
+          { id: "b", query: "tokens", judgments: [{ ref: "docs/token.md", grade: 1 }], note: null, expect: "answer" as const },
+          { id: "c", query: "lunch", judgments: [{ ref: "docs/unrelated.md", grade: 1 }], note: null, expect: "answer" as const },
         ],
       });
 
@@ -209,7 +210,7 @@ describe("application/usecase/evaluateCorpus", () => {
   describe("unmeasurable datasets", () => {
     it("reports null rather than zero when no query carries judgments", async () => {
       const unjudged = dataset({
-        queries: [{ id: "smoke", query: "JWKS", judgments: [], note: null }],
+        queries: [{ id: "smoke", query: "JWKS", judgments: [], note: null, expect: "answer" as const }],
       });
       const report = await evaluateCorpus({ dataset: unjudged }, deps());
       assert.equal(report.summary.recallAtK, null);
@@ -220,7 +221,7 @@ describe("application/usecase/evaluateCorpus", () => {
     it("warns about judged refs the corpus does not contain", async () => {
       const stale = dataset({
         queries: [
-          { id: "gone", query: "JWKS", judgments: [{ ref: "docs/renamed.md", grade: 2 }], note: null },
+          { id: "gone", query: "JWKS", judgments: [{ ref: "docs/renamed.md", grade: 2 }], note: null, expect: "answer" as const },
         ],
       });
       const report = await evaluateCorpus({ dataset: stale }, deps());
@@ -250,7 +251,7 @@ describe("application/usecase/evaluateCorpus", () => {
             id: "jwks",
             query: "JWKS",
             judgments: [{ ref: "docs/keys.md", grade: 3, startLine: 1, endLine: 1 }],
-            note: null,
+            note: null, expect: "answer" as const,
           },
         ],
       });
@@ -266,7 +267,7 @@ describe("application/usecase/evaluateCorpus", () => {
             id: "jwks",
             query: "JWKS",
             judgments: [{ ref: "docs/keys.md", grade: 3, startLine: 900, endLine: 910 }],
-            note: null,
+            note: null, expect: "answer" as const,
           },
         ],
       });
@@ -290,6 +291,7 @@ describe("application/usecase/evaluateCorpus", () => {
         queries: ["JWKS", "tokens", "rotation", "lunch"].map((query, index) => ({
           id: `q${index}`,
           query,
+          expect: "answer" as const,
           judgments: [],
           note: null,
         })),
@@ -310,7 +312,7 @@ describe("application/usecase/evaluateCorpus", () => {
     it("fails when a threshold is not met", async () => {
       const missing = dataset({
         queries: [
-          { id: "lunch", query: "JWKS", judgments: [{ ref: "docs/unrelated.md", grade: 1 }], note: null },
+          { id: "lunch", query: "JWKS", judgments: [{ ref: "docs/unrelated.md", grade: 1 }], note: null, expect: "answer" as const },
         ],
       });
       const report = await evaluateCorpus(
@@ -325,11 +327,11 @@ describe("application/usecase/evaluateCorpus", () => {
       const report = await evaluateCorpus(
         {
           dataset: dataset(),
-          baseline: { recall: 1, precision: 0.1, mrr: 1, ndcg: 1, evidence: null },
+          baseline: { recall: 1, precision: 0.1, mrr: 1, ndcg: 1, evidence: null, abstention: null, false_abstention: null },
         },
         deps(),
       );
-      assert.equal(report.comparison?.length, 5);
+      assert.equal(report.comparison?.length, GATED_METRICS.length);
       assert.equal(report.comparison?.find((delta) => delta.metric === "recall")?.delta, 0);
       assert.equal(report.passed, true);
     });
@@ -337,13 +339,13 @@ describe("application/usecase/evaluateCorpus", () => {
     it("fails when a metric fell below its baseline", async () => {
       const missing = dataset({
         queries: [
-          { id: "lunch", query: "JWKS", judgments: [{ ref: "docs/unrelated.md", grade: 1 }], note: null },
+          { id: "lunch", query: "JWKS", judgments: [{ ref: "docs/unrelated.md", grade: 1 }], note: null, expect: "answer" as const },
         ],
       });
       const report = await evaluateCorpus(
         {
           dataset: missing,
-          baseline: { recall: 1, precision: 1, mrr: 1, ndcg: 1, evidence: null },
+          baseline: { recall: 1, precision: 1, mrr: 1, ndcg: 1, evidence: null, abstention: null, false_abstention: null },
         },
         deps(),
       );
@@ -355,7 +357,7 @@ describe("application/usecase/evaluateCorpus", () => {
       const report = await evaluateCorpus(
         {
           dataset: dataset(),
-          baseline: { recall: 1, precision: 1, mrr: 1, ndcg: 1, evidence: null },
+          baseline: { recall: 1, precision: 1, mrr: 1, ndcg: 1, evidence: null, abstention: null, false_abstention: null },
           tolerance: 1,
         },
         deps(),
@@ -375,7 +377,7 @@ describe("application/usecase/evaluateCorpus: page-level evidence", () => {
 
   const judgedOnPage3 = dataset({
     queries: [
-      { id: "revenue", query: "quarterly revenue", judgments: [{ ref: "docs/report.pdf", grade: 1, page: 3 }], note: null },
+      { id: "revenue", query: "quarterly revenue", judgments: [{ ref: "docs/report.pdf", grade: 1, page: 3 }], note: null, expect: "answer" as const },
     ],
   });
 

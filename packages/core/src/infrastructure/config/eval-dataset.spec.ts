@@ -232,3 +232,39 @@ describe("infrastructure/config/eval-dataset: pages", () => {
     });
   }
 });
+
+describe("infrastructure/config/eval-dataset: expect", () => {
+  it("defaults to expecting an answer", () => {
+    const dataset = parseEvalDataset({ queries: [{ id: "q", query: "JWKS" }] }, "d.json");
+    assert.equal(dataset.queries[0]?.expect, "answer");
+  });
+
+  it("reads a query that expects no answer", () => {
+    const dataset = parseEvalDataset(
+      { queries: [{ id: "q", query: "how to bake bread", expect: "no_answer" }] },
+      "d.json",
+    );
+    assert.equal(dataset.queries[0]?.expect, "no_answer");
+    assert.deepEqual(dataset.queries[0]?.judgments, []);
+  });
+
+  it("refuses a query that expects no answer and then names one", () => {
+    // The two say opposite things, and guessing which the author meant would
+    // silently measure the wrong property.
+    assert.throws(
+      () =>
+        parseEvalDataset(
+          { queries: [{ id: "q", query: "x", expect: "no_answer", relevant: ["docs/a.md"] }] },
+          "d.json",
+        ),
+      ConfigError,
+    );
+  });
+
+  it("refuses an expectation it does not understand", () => {
+    assert.throws(
+      () => parseEvalDataset({ queries: [{ id: "q", query: "x", expect: "maybe" }] }, "d.json"),
+      ConfigError,
+    );
+  });
+});

@@ -10,8 +10,8 @@ import {
   ndcgAtK,
   percentile,
   precisionAtK,
-  reciprocalRank,
   recallAtK,
+  reciprocalRank,
   scoreQuery,
   spansOverlap,
   type Judgment,
@@ -444,5 +444,52 @@ describe("domain/service/metrics", () => {
       assert.equal(empty.recallAtK, null);
       assert.equal(empty.mrr, null);
     });
+  });
+});
+
+describe("domain/service/metrics: abstention", () => {
+  const scored = (expect: "answer" | "no_answer", abstained: boolean, relevant = 1) =>
+    scoreQuery(
+      abstained ? [] : [{ ref: "docs/a.md", startLine: 1, endLine: 3, page: null }],
+      relevant > 0 ? [{ ref: "docs/a.md", grade: 1 }] : [],
+      10,
+      { expect, abstained },
+    );
+
+  it("scores a refusal of an unanswerable question as correct", () => {
+    const summary = aggregate([scored("no_answer", true, 0), scored("no_answer", true, 0)]);
+    assert.equal(summary.noAnswerQueries, 2);
+    assert.equal(summary.abstention, 1);
+  });
+
+  it("scores an answer to an unanswerable question as a miss", () => {
+    const summary = aggregate([scored("no_answer", true, 0), scored("no_answer", false, 0)]);
+    assert.equal(summary.abstention, 0.5);
+  });
+
+  it("counts a refusal of an answerable question separately", () => {
+    // Both directions, because either alone is trivial to make perfect: a
+    // search that refuses everything abstains 1.0.
+    const summary = aggregate([scored("answer", true), scored("answer", false), scored("no_answer", true, 0)]);
+    assert.equal(summary.abstention, 1);
+    assert.equal(summary.falseAbstention, 0.5);
+  });
+
+  it("reports null rather than zero when the dataset asked nothing of it", () => {
+    const summary = aggregate([scored("answer", false)]);
+    assert.equal(summary.noAnswerQueries, 0);
+    assert.equal(summary.abstention, null, "no unanswerable questions is not an abstention rate of 0");
+  });
+
+  it("leaves an unmeasurable query out of the false-refusal rate", () => {
+    // A query with no judgments says nothing about whether refusing it was wrong.
+    const summary = aggregate([scored("answer", true, 0)]);
+    assert.equal(summary.falseAbstention, null);
+  });
+
+  it("treats a query as answering by default, so old callers are unchanged", () => {
+    const metrics = scoreQuery([], [{ ref: "docs/a.md", grade: 1 }], 10);
+    assert.equal(metrics.expected, "answer");
+    assert.equal(metrics.abstained, false);
   });
 });

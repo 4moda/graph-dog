@@ -15,7 +15,16 @@ import {
 } from "./evaluation-gate.ts";
 
 function scores(overrides: Partial<GateScores> = {}): GateScores {
-  return { recall: 0.8, precision: 0.5, mrr: 0.75, ndcg: 0.7, evidence: 0.9, ...overrides };
+  return {
+    recall: 0.8,
+    precision: 0.5,
+    mrr: 0.75,
+    ndcg: 0.7,
+    evidence: 0.9,
+    abstention: 1,
+    false_abstention: 1,
+    ...overrides,
+  };
 }
 
 function thresholds(entries: Partial<Record<GatedMetric, number>>): Map<GatedMetric, number> {
@@ -24,7 +33,7 @@ function thresholds(entries: Partial<Record<GatedMetric, number>>): Map<GatedMet
 
 describe("domain/service/evaluation-gate", () => {
   describe("gateScores", () => {
-    it("pulls the five gated metrics out of a full aggregate", () => {
+    it("pulls every gated metric out of a full aggregate", () => {
       const aggregate: AggregateMetrics = {
         queries: 3,
         measured: 3,
@@ -36,6 +45,9 @@ describe("domain/service/evaluation-gate", () => {
         evidenceChecked: 4,
         zeroResultQueries: 0,
         missedQueries: 1,
+        noAnswerQueries: 0,
+        abstention: null,
+        falseAbstention: 0,
       };
       assert.deepEqual(gateScores(aggregate), {
         recall: 0.6,
@@ -43,6 +55,8 @@ describe("domain/service/evaluation-gate", () => {
         mrr: 0.5,
         ndcg: 0.55,
         evidence: 1,
+        abstention: null,
+        false_abstention: 1,
       });
     });
 
@@ -58,6 +72,9 @@ describe("domain/service/evaluation-gate", () => {
         evidenceChecked: 0,
         zeroResultQueries: 0,
         missedQueries: 0,
+        noAnswerQueries: 0,
+        abstention: null,
+        falseAbstention: null,
       };
       assert.equal(gateScores(aggregate).recall, null);
     });

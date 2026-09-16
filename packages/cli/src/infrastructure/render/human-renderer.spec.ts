@@ -488,6 +488,9 @@ function evaluation(overrides: Partial<EvaluationReportDto> = {}): EvaluationRep
     summary: {
       queries: 4,
       measured: 4,
+      no_answer_queries: 0,
+      abstention: null,
+      false_abstention: 0,
       recall_at_k: 0.75,
       precision_at_k: 0.1,
       mrr: 0.625,

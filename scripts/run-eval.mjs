@@ -36,7 +36,20 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = join(REPO, "packages/cli/dist/main.js");
 const SUITES = join(REPO, "eval", "suites");
 const GATE_FAILED = 8;
-const BASELINE_KEYS = ["recall_at_k", "precision_at_k", "mrr", "ndcg_at_k", "evidence_accuracy", "evidence_checked"];
+const BASELINE_KEYS = [
+  "recall_at_k",
+  "precision_at_k",
+  "mrr",
+  "ndcg_at_k",
+  "evidence_accuracy",
+  "evidence_checked",
+  // Refusing what the corpus cannot answer is worth defending against
+  // regression too, and both directions are recorded: a search that refused
+  // everything would post a perfect `abstention`.
+  "abstention",
+  "false_abstention",
+  "no_answer_queries",
+];
 
 function parseArguments(argv) {
   const options = { suite: null, record: false, list: false, semantic: false, passthrough: [] };

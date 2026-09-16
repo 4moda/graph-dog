@@ -24,6 +24,9 @@ function outcome(overrides: Partial<EvaluationOutcome> = {}): EvaluationOutcome 
       evidenceChecked: 3,
       zeroResultQueries: 0,
       missedQueries: 1,
+      noAnswerQueries: 1,
+      abstention: 1,
+      falseAbstention: 0,
     },
     latency: { meanMs: 12.34567, p50Ms: 11, p95Ms: 20, maxMs: 21 },
     failedQueries: 0,
@@ -38,6 +41,8 @@ function outcome(overrides: Partial<EvaluationOutcome> = {}): EvaluationOutcome 
           reciprocalRank: 1,
           ndcgAtK: 1,
           evidence: { checked: 1, correct: 1, accuracy: 1 },
+          expected: "answer" as const,
+          abstained: false,
           retrieved: 2,
           relevant: 1,
         },
@@ -162,6 +167,9 @@ describe("application/dto/evaluation-mappers", () => {
         mrr: 0.75,
         ndcg: 0.5,
         evidence: 1,
+        abstention: 1,
+        // Stored as a rate and gated inverted, so 0 refusals reads as 1.
+        false_abstention: 1,
       });
     });
 

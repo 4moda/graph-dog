@@ -2,15 +2,22 @@
   "_comment": [
     "The scores GraphDog's own docs achieved when last recorded. This suite reports; it does",
     "not gate, because the corpus is the docs themselves and editing them moves these numbers.",
-    "The gate is the allganize-ja suite. Re-record with:",
+    "The gate is the allganize-ja suite.",
+    "",
+    "Editing the docs also moves the judgments' line ranges out from under them. Before",
+    "re-recording, put them back where their text went:",
+    "  node scripts/relocate-judgments.mjs eval/suites/graphdog-docs/dataset.json <last-good-commit>",
     "  npm run eval -- --suite graphdog-docs --record"
   ],
   "summary": {
-    "recall_at_k": 0.911111,
-    "precision_at_k": 0.146667,
+    "recall_at_k": 0.933333,
+    "precision_at_k": 0.153333,
     "mrr": 0.744444,
-    "ndcg_at_k": 0.75047,
-    "evidence_accuracy": 0.590909,
-    "evidence_checked": 22
+    "ndcg_at_k": 0.768965,
+    "evidence_accuracy": 0.565217,
+    "evidence_checked": 23,
+    "abstention": null,
+    "false_abstention": 0,
+    "no_answer_queries": 0
   }
 }

@@ -129,7 +129,13 @@ What the original dataset could not carry:
     wrong reason: its query produced no candidates and never reached the
     threshold. Fixed with `search.minTermCoverage`, an absolute measure; still
     to build is the suite that scores abstention as a metric rather than by
-    hand on eight questions.
+    hand on eight questions. **Now built**: a query carries
+    `"expect": "no_answer"`, the gate suite has ten of them, and `abstention`
+    and `false_abstention` are reported and gated like any other metric. It
+    refuses 6 of the 10 at 0 false refusals out of 56 answerable questions.
+    The four it answers are the near ones, and Japanese politeness boilerplate
+    is part of why: "...について説明してください" shares bigrams with anything,
+    so a question's register lifts its coverage before its subject does.
   - No query that needs the graph, so nothing shows the graph signal earns its
     place.
   - One corpus at a time, so the cross-corpus merge is unmeasured.
@@ -327,6 +333,13 @@ left 5 of the 6 off-by-one failures exactly where they were. The cross-encoder
 moved **nothing at all**: the same 13 questions fail identically, because the
 document already ranks first and reranking the shortlist does not change which
 chunk of it is cited.
+
+**The docs suite needs its judgments relocated whenever the docs change**, which
+is every few commits, and `scripts/relocate-judgments.mjs` is a manual step
+somebody has to remember. The durable fix is to judge by anchor text rather than
+by line number -- "the passage beginning *Cosine similarity and BM25 live on*"
+survives any edit that does not rewrite that sentence, where `166-172` does not
+survive a paragraph being inserted above it.
 
 **The two groups are one problem.** Reading the failing pages says so, and the
 page delta had been standing in for a diagnosis. In all six off-by-one cases the

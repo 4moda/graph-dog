@@ -47,6 +47,17 @@ export interface EvalQuery {
   readonly judgments: readonly Judgment[];
   /** Free-text note explaining the query's intent; carried into the report. */
   readonly note: string | null;
+  /**
+   * What this query is for.
+   *
+   * `answer` is the ordinary case, scored on what came back. `no_answer` says
+   * the corpus does not contain an answer, and is scored on whether search
+   * said so -- the one thing an agent relies on that no ranking metric can
+   * see. A query with no judgments is *unmeasurable*, which is a different
+   * statement from "there is nothing to find", and conflating the two is how
+   * abstention went unmeasured for the life of this project.
+   */
+  readonly expect: "answer" | "no_answer";
 }
 
 export interface EvalDataset {
@@ -110,11 +121,18 @@ export function parseEvalDataset(input: unknown, path = "<dataset>"): EvalDatase
     if (seenIds.has(id)) throw new ConfigError(`${where}.id "${id}" is not unique`, { path });
     seenIds.add(id);
 
+    const expect = parseExpectation(query["expect"], `${where}.expect`, path);
+    const judgments = parseJudgments(query["relevant"], `${where}.relevant`, path);
+    if (expect === "no_answer" && judgments.length > 0) {
+      throw new ConfigError(`${where} expects no answer but lists relevant documents`, { path });
+    }
+
     queries.push({
       id,
       query: text,
-      judgments: parseJudgments(query["relevant"], `${where}.relevant`, path),
+      judgments,
       note: query["note"] === undefined ? null : asString(query["note"], "", `${where}.note`),
+      expect,
     });
   });
 
@@ -124,6 +142,12 @@ export function parseEvalDataset(input: unknown, path = "<dataset>"): EvalDatase
     description: asString(data["description"], "", `${path}.description`),
     queries,
   };
+}
+
+function parseExpectation(input: unknown, where: string, path: string): "answer" | "no_answer" {
+  if (input === undefined) return "answer";
+  if (input === "answer" || input === "no_answer") return input;
+  throw new ConfigError(`${where} must be "answer" or "no_answer"`, { path, received: input });
 }
 
 function parseJudgments(input: unknown, where: string, path: string): Judgment[] {
