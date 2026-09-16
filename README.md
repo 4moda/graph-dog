@@ -39,12 +39,17 @@ leave you to trust it. An agent needs something different — a result it can
 ## Install
 
 ```console
-npm install -g graphdog        # the CLI
+npm install -g graphdog        # the CLI and the MCP server
 npx graphdog --help            # or just run it
 ```
 
-Requires Node 22.18+. Zero runtime dependencies for the CLI; the MCP server
-adds only the official Model Context Protocol SDK.
+Homebrew is the intended primary channel; the formula and its release procedure
+are in [`packaging/homebrew/`](packaging/homebrew/), the tap is not published
+yet.
+
+Requires Node 22.18+. Zero runtime dependencies beyond the official Model
+Context Protocol SDK, which `graphdog mcp` needs. Nothing to compile: SQLite is
+`node:sqlite`, built into Node.
 
 ## Use it
 
@@ -96,12 +101,17 @@ instructions to refresh when a search reports the corpus stale. Add
 shell and `PATH` the caller happens to have, and across Windows, WSL and GUI git
 clients that is often not one that can find `graphdog` at all.
 
+```console
+graphdog doctor                  # what is installed, and anything broken
+```
+
 Everything written is recorded in `~/.graphdog/installed.json`, and uninstall
 removes exactly that: a file GraphDog created goes, a file it only added to
 comes back byte for byte, and one hook entry is removed without touching the
 other tools' hooks for the same event. It also works from a clone that ledger
 has never seen, which is what a committed `--project` install becomes for a
-teammate.
+teammate. `--purge --yes` additionally deletes the built indexes — never a
+corpus config, which is the project's own file.
 
 Exposes `search`, `explore`, `read`, `status` and `list_corpora`. Read-only by
 default — `build_corpus` requires `--allow-write`, so an agent cannot rewrite

@@ -20,7 +20,7 @@ export const ExitCode = {
   NOT_FOUND: 3,
   /** Schema, embedding or chunking identity mismatch. Refuse rather than guess. */
   INCOMPATIBLE: 4,
-  /** Build finished, but some files failed. */
+  /** Build finished with failures, or `doctor` found something broken. */
   PARTIAL: 5,
   /** Target already exists, or was modified concurrently. */
   CONFLICT: 6,

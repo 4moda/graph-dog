@@ -158,16 +158,20 @@ export function targetsFor(platform: AgentPlatform, scope: IntegrationScope): Pl
 /**
  * The MCP server entry written into the agent's configuration.
  *
- * `graphdog-mcp` from `PATH`, never a Homebrew Cellar path -- which an upgrade
- * replaces -- and never `npx`, which would make an agent's first search a
- * download. Read-only unless the install explicitly asked otherwise: an agent
- * given a corpus to consult should not be able to rewrite it because a document
- * it read said to.
+ * `graphdog mcp`, not `graphdog-mcp`: the subcommand is in the package people
+ * install, and the separate binary ships in `@graphdog/mcp`, which `npm install
+ * -g graphdog` does not put on anyone's `PATH`. Registering a command the user
+ * does not have is an integration that fails at the agent's first search.
+ *
+ * From `PATH`, never a Homebrew Cellar path -- which an upgrade replaces -- and
+ * never `npx`, which would make that first search a download. Read-only unless
+ * the install explicitly asked otherwise: an agent given a corpus to consult
+ * should not be able to rewrite it because a document it read said to.
  */
 export function mcpServerEntry(options: { allowWrite: boolean }): JsonObject {
   return {
-    command: "graphdog-mcp",
-    args: options.allowWrite ? ["--allow-write"] : [],
+    command: "graphdog",
+    args: options.allowWrite ? ["mcp", "--allow-write"] : ["mcp"],
   };
 }
 

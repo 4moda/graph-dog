@@ -64,7 +64,7 @@ export const installSpec: CommandSpec = {
 export const uninstallSpec: CommandSpec = {
   name: "uninstall",
   summary: "Remove what install wrote",
-  usage: `graphdog uninstall [--platform <${PLATFORMS}|git>] [--project] [--dry-run]`,
+  usage: `graphdog uninstall [--platform <${PLATFORMS}|git>] [--project] [--purge --yes] [--dry-run]`,
   options: {
     platform: {
       type: "string",
@@ -73,9 +73,15 @@ export const uninstallSpec: CommandSpec = {
       placeholder: "<name>",
     },
     project: { type: "boolean", description: "Only this repository's files" },
+    purge: { type: "boolean", description: "Also delete built indexes and home-workspace corpora" },
+    yes: { type: "boolean", short: "y", description: "Confirm a --purge without being asked" },
     "dry-run": { type: "boolean", description: "Show what would be removed" },
   },
-  examples: ["graphdog uninstall", "graphdog uninstall --platform kiro --project"],
+  examples: [
+    "graphdog uninstall",
+    "graphdog uninstall --platform kiro --project",
+    "graphdog uninstall --purge --dry-run",
+  ],
 };
 
 export async function runInstall(context: CommandContext): Promise<CommandResult> {
@@ -107,6 +113,8 @@ export async function runUninstall(context: CommandContext): Promise<CommandResu
     // Unrestricted by default: "take it off" should not leave the other scope
     // behind, which is the uninstall people complain about.
     ...(optionBoolean(context.parsed, "project") ? { scope: "project" as IntegrationScope } : {}),
+    purge: optionBoolean(context.parsed, "purge"),
+    confirmed: optionBoolean(context.parsed, "yes"),
     dryRun: optionBoolean(context.parsed, "dry-run"),
     cwd: context.cwd,
     logger: context.logger,
@@ -140,6 +148,7 @@ function report(outcome: IntegrationOutcome): CommandResult {
       kind: change.kind,
       path: change.path,
       at: change.at,
+      ...(change.bytes === undefined ? {} : { bytes: change.bytes }),
     })),
   };
   return { json: dto, human: renderIntegrationReport(dto) };

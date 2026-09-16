@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { ConfigError } from "../domain/errors.ts";
+import { ConfigError, ConflictError } from "../domain/errors.ts";
 import { initProjectWorkspace } from "../infrastructure/config/workspace.ts";
 import { readLedger } from "../infrastructure/integration/installation-ledger.ts";
 import { installAgentIntegration, knownPlatforms, uninstallAgentIntegration } from "./agent-integration.ts";
@@ -66,7 +66,7 @@ describe("composition/agent-integration", () => {
       );
 
       const mcp = JSON.parse(await read(join(cwd, ".mcp.json"))) as Record<string, Record<string, unknown>>;
-      assert.deepEqual(mcp["mcpServers"]?.["graphdog"], { command: "graphdog-mcp", args: [] });
+      assert.deepEqual(mcp["mcpServers"]?.["graphdog"], { command: "graphdog", args: ["mcp"] });
       assert.match(await read(join(cwd, "CLAUDE.md")), /<!-- graphdog -->[\s\S]*Search before you read/);
     });
 
@@ -74,17 +74,21 @@ describe("composition/agent-integration", () => {
       const cwd = await fresh();
       await installAgentIntegration({ platform: "claude", scope: "project", cwd, allowWrite: true });
       const mcp = JSON.parse(await read(join(cwd, ".mcp.json"))) as Record<string, Record<string, Record<string, unknown>>>;
-      assert.deepEqual(mcp["mcpServers"]?.["graphdog"]?.["args"], ["--allow-write"]);
+      assert.deepEqual(mcp["mcpServers"]?.["graphdog"]?.["args"], ["mcp", "--allow-write"]);
     });
 
-    it("runs the installed binary from PATH, never npx", async () => {
-      // An agent's first search must not be a download, and a Homebrew Cellar
-      // path would not survive an upgrade.
+    it("runs the command the user installed, from PATH, never npx", async () => {
+      // `npm install -g graphdog` does not put `graphdog-mcp` on anyone's PATH
+      // -- that binary ships in a different package -- so registering it would
+      // be an integration that fails at the agent's first search. An agent's
+      // first search must not be a download either, and a Homebrew Cellar path
+      // would not survive an upgrade.
       const cwd = await fresh();
       await installAgentIntegration({ platform: "claude", scope: "project", cwd });
       const text = await read(join(cwd, ".mcp.json"));
       assert.ok(!text.includes("npx"), text);
-      assert.match(text, /"command": "graphdog-mcp"/);
+      assert.match(text, /"command": "graphdog"/);
+      assert.match(text, /"mcp"/);
     });
 
     it("writes its own instruction file where the platform reads a directory of them", async () => {
@@ -502,6 +506,69 @@ describe("composition/agent-integration", () => {
         assert.ok(await exists(join(cwd, "CLAUDE.md")));
         assert.equal((await readLedger()).installations.length, 1);
       });
+    });
+  });
+
+  describe("--purge", () => {
+    /** A project with a built index and a config beside it. */
+    async function built(cwd: string): Promise<{ store: string; config: string }> {
+      const workspace = { root: join(cwd, ".graphdog"), scope: "project" as const };
+      const dir = join(workspace.root, "corpora", "docs");
+      await mkdir(dir, { recursive: true });
+      const store = join(dir, "corpus.sqlite3");
+      const config = join(dir, "graphdog.json");
+      await writeFile(store, "x".repeat(4096), "utf8");
+      await writeFile(config, '{"version":1,"name":"docs"}\n', "utf8");
+      return { store, config };
+    }
+
+    it("refuses without confirmation, listing what it would delete and what it weighs", async () => {
+      // A prompt would hang the agents and scripts that also run this.
+      const cwd = await fresh();
+      const { store } = await built(cwd);
+      await assert.rejects(
+        () => uninstallAgentIntegration({ cwd, purge: true }),
+        (error: unknown) => {
+          assert.ok(error instanceof ConflictError);
+          assert.match(error.message, /re-run with --yes/);
+          assert.ok((error.details["would_delete"] as string[]).includes(store));
+          assert.ok((error.details["bytes"] as number) >= 4096);
+          return true;
+        },
+      );
+      assert.ok(await exists(store), "and it deleted nothing");
+    });
+
+    it("deletes the built index when confirmed", async () => {
+      const cwd = await fresh();
+      const { store } = await built(cwd);
+      const outcome = await uninstallAgentIntegration({ cwd, purge: true, confirmed: true });
+      assert.equal(await exists(store), false);
+      assert.ok(outcome.changes.some((change) => change.kind === "data" && change.bytes !== undefined));
+    });
+
+    it("never deletes a project's corpus config, which is the project's own file", async () => {
+      // It describes what to index and may be committed; deleting it would
+      // make --purge destroy work rather than free space.
+      const cwd = await fresh();
+      const { config } = await built(cwd);
+      await uninstallAgentIntegration({ cwd, purge: true, confirmed: true });
+      assert.ok(await exists(config));
+    });
+
+    it("leaves the data alone without --purge", async () => {
+      const cwd = await fresh();
+      const { store } = await built(cwd);
+      await uninstallAgentIntegration({ cwd });
+      assert.ok(await exists(store));
+    });
+
+    it("lists without deleting under --dry-run, and needs no confirmation to do so", async () => {
+      const cwd = await fresh();
+      const { store } = await built(cwd);
+      const outcome = await uninstallAgentIntegration({ cwd, purge: true, dryRun: true });
+      assert.ok(outcome.changes.some((change) => change.kind === "data"));
+      assert.ok(await exists(store));
     });
   });
 

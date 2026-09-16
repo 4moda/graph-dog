@@ -56,6 +56,7 @@ import {
   runUninstall,
   uninstallSpec,
 } from "./application/commands/install.ts";
+import { doctorSpec, runDoctorCommand } from "./application/commands/doctor.ts";
 
 type CommandHandler = (context: CommandContext) => Promise<CommandResult>;
 
@@ -79,6 +80,7 @@ const COMMANDS: readonly Command[] = [
   { spec: importSpec, run: runImport },
   { spec: installSpec, run: runInstall },
   { spec: uninstallSpec, run: runUninstall },
+  { spec: doctorSpec, run: runDoctorCommand },
 ];
 
 /**
@@ -111,6 +113,14 @@ export async function main(
   if (name === "--version" || name === "-V" || name === "version") {
     streams.out(`${VERSION}\n`);
     return ExitCode.OK;
+  }
+
+  // `mcp` is not a command in the sense the rest are: it serves a protocol on
+  // stdio until the host disconnects, with no report to print and no exit code
+  // to compute. Handled before dispatch rather than bent into that shape.
+  if (name === "mcp") {
+    const { main: serve } = await import("@graphdog/mcp");
+    return serve(rest);
   }
 
   const command = COMMANDS.find((candidate) => candidate.spec.name === name);
@@ -188,6 +198,7 @@ function renderTopLevelHelp(): string {
     ...COMMANDS.map(
       (command) => `  ${command.spec.name.padEnd(width)}${command.spec.summary}`,
     ),
+    `  ${"mcp".padEnd(width)}Serve the MCP protocol on stdio, for an agent to connect to`,
     "",
     "Getting started:",
     "  graphdog init docs --source ./docs",
@@ -197,7 +208,7 @@ function renderTopLevelHelp(): string {
     "Every command accepts --json for machine-readable output, and --help for details.",
     "",
     "Exit codes:",
-    "  0 ok   2 usage   3 not found   4 incompatible corpus   5 partial build   7 no evidence   8 eval gate failed",
+    "  0 ok   2 usage   3 not found   4 incompatible corpus   5 partial build or doctor finding   7 no evidence   8 eval gate failed",
     "",
   ];
   return `${lines.join("\n")}\n`;

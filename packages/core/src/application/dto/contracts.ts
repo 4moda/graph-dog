@@ -290,14 +290,36 @@ export interface BuildReportsDto extends ResponseEnvelope {
   readonly reports: readonly BuildReportDto[];
 }
 
+/** One thing `doctor` checked. */
+export interface DoctorFindingDto {
+  readonly section: "install" | "home" | "extras" | "agents" | "corpora";
+  readonly label: string;
+  readonly detail: string;
+  /** `warn` is worth knowing; only `broken` makes the command exit non-zero. */
+  readonly status: "ok" | "warn" | "broken";
+  /** The command that fixes it, or null when there is nothing to fix. */
+  readonly remedy: string | null;
+}
+
+export interface DoctorReportDto extends ResponseEnvelope {
+  readonly kind: "doctor_report";
+  readonly graphdog_version: string;
+  readonly node_version: string;
+  readonly healthy: boolean;
+  readonly findings: readonly DoctorFindingDto[];
+}
+
 /** One file, configuration key or marker block an install or uninstall touched. */
 export interface IntegrationChangeDto {
   /** `absent` is a removal that found nothing; `unchanged` an install that had nothing to write. */
   readonly action: "created" | "updated" | "removed" | "unchanged" | "absent";
-  readonly kind: "file" | "block" | "key" | "hook";
+  /** `data` is an index a `--purge` deleted; the rest is configuration an install wrote. */
+  readonly kind: "file" | "block" | "key" | "hook" | "data";
   readonly path: string;
   /** The marker name for a block, the dotted property path for a key or hook, null for a whole file. */
   readonly at: string | null;
+  /** Bytes freed, for `data`. Absent for everything else. */
+  readonly bytes?: number;
 }
 
 export interface IntegrationReportDto extends ResponseEnvelope {

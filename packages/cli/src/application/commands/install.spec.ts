@@ -3,9 +3,12 @@ import { readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 
-import { ConfigError, UsageError, type IntegrationReportDto } from "@graphdog/core";
+import { ConfigError, ConflictError, UsageError, type IntegrationReportDto } from "@graphdog/core";
 
-import { cleanup, makeProject, run } from "./__fixtures__/cli-harness.ts";
+import { FIXTURE_DOCS, cleanup, makeProject, run } from "./__fixtures__/cli-harness.ts";
+import { addSpec, runAdd } from "./add.ts";
+import { buildSpec, runBuild } from "./build.ts";
+import { initSpec, runInit } from "./init.ts";
 import { installSpec, runInstall, runUninstall, uninstallSpec } from "./install.ts";
 
 const roots: string[] = [];
@@ -24,7 +27,7 @@ function restore(key: string, value: string | undefined): void {
 }
 
 /** A project, plus a private home so neither the agent's config nor the ledger is the real one. */
-async function fresh(files: Record<string, string> = {}): Promise<string> {
+async function fresh(files: Record<string, string> = FIXTURE_DOCS): Promise<string> {
   const project = await makeProject(files);
   const home = await makeProject();
   roots.push(project, home);
@@ -156,6 +159,29 @@ describe("cli/application/commands/uninstall", () => {
     );
     const mcp = JSON.parse(await readFile(join(cwd, ".mcp.json"), "utf8")) as Record<string, object>;
     assert.deepEqual(Object.keys(mcp["mcpServers"] ?? {}), ["code-review-graph"]);
+  });
+
+  describe("--purge", () => {
+    it("refuses without --yes, and says what it would have deleted", async () => {
+      const cwd = await fresh();
+      await run(initSpec, runInit, cwd, ["docs"]);
+      await assert.rejects(() => uninstalling(cwd, ["--purge"]), ConflictError);
+    });
+
+    it("deletes the index when confirmed, and reports the bytes freed", async () => {
+      const cwd = await fresh();
+      await run(initSpec, runInit, cwd, ["docs"]);
+      await run(addSpec, runAdd, cwd, ["./docs"]);
+      await run(buildSpec, (context) => runBuild(context, true), cwd, []);
+
+      const result = await uninstalling(cwd, ["--purge", "--yes"]);
+      const report = result.json as IntegrationReportDto;
+      const data = report.changes.filter((change) => change.kind === "data");
+      assert.ok(data.length > 0);
+      assert.ok(data.every((change) => typeof change.bytes === "number"));
+      assert.equal(await exists(join(cwd, ".graphdog", "corpora", "docs", "corpus.sqlite3")), false);
+      assert.ok(await exists(join(cwd, ".graphdog", "corpora", "docs", "graphdog.json")), "the config stays");
+    });
   });
 
   describe("--dry-run", () => {

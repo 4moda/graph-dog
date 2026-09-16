@@ -175,6 +175,8 @@ export type {
   UninstallIntegrationOptions,
 } from "./composition/agent-integration.ts";
 export type { IntegrationScope } from "./domain/model/installation.ts";
+export { runDoctor } from "./composition/doctor.ts";
+export type { DoctorFinding, DoctorOptions, DoctorReport } from "./composition/doctor.ts";
 
 // --- workspace ---------------------------------------------------------------
 export {

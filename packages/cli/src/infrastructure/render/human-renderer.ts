@@ -16,6 +16,7 @@ import type {
   BuildReportsDto,
   CorpusInfoDto,
   CorpusListDto,
+  DoctorReportDto,
   EvaluationDeltaDto,
   EvaluationReportDto,
   ExploreResponseDto,
@@ -625,11 +626,51 @@ export function renderIntegrationReport(
   };
   for (const change of report.changes) {
     const at = change.at === null || change.kind === "block" ? "" : ` ${paint(options, "dim", change.at)}`;
-    lines.push(`  ${paint(options, colour[change.action], change.action.padEnd(9))} ${change.path}${at}`);
+    const size = change.bytes === undefined ? "" : ` ${paint(options, "dim", `(${formatBytes(change.bytes)})`)}`;
+    lines.push(`  ${paint(options, colour[change.action], change.action.padEnd(9))} ${change.path}${at}${size}`);
   }
 
   if (report.operation === "install" && !report.dry_run) {
     lines.push(paint(options, "dim", "  restart the agent to pick up the new server"));
   }
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The doctor report, grouped by section, with each remedy under its finding.
+ *
+ * Sorted by section rather than severity so the same thing is always in the
+ * same place; a problem is found by its colour and its `->`, not by scanning.
+ */
+export function renderDoctorReport(
+  report: DoctorReportDto,
+  options: RenderOptions = defaultRenderOptions(),
+): string {
+  const lines = [
+    `${paint(options, "bold", `graphdog ${report.graphdog_version}`)} ${paint(options, "dim", `node ${report.node_version}`)}`,
+  ];
+
+  let section = "";
+  for (const finding of report.findings) {
+    const heading = finding.section === section ? "        " : finding.section.padEnd(8);
+    section = finding.section;
+    const mark =
+      finding.status === "broken"
+        ? paint(options, "red", "x")
+        : finding.status === "warn"
+          ? paint(options, "yellow", "!")
+          : paint(options, "green", "-");
+    lines.push(`${heading} ${mark} ${paint(options, "bold", finding.label)}  ${finding.detail}`);
+    if (finding.remedy !== null && finding.status !== "ok") {
+      lines.push(`${" ".repeat(10)}${paint(options, "dim", `-> ${finding.remedy}`)}`);
+    }
+  }
+
+  lines.push(
+    "",
+    report.healthy
+      ? paint(options, "green", "nothing is broken")
+      : paint(options, "red", "something is broken; see the lines marked x"),
+  );
   return `${lines.join("\n")}\n`;
 }

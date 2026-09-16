@@ -18,7 +18,7 @@ product and the way it is installed, not its feature list.
 - Evaluation harness: judged datasets, IR metrics, baselines and a CI regression gate
 - Portable archives: `export` and `import` of a verified `.gdog` file
 - CLI: `init`, `add`, `build`, `update`, `search`, `explore`, `read`, `status`, `list`, `eval`,
-  `export`, `import`, `install`, `uninstall`
+  `export`, `import`, `install`, `uninstall`, `doctor`, `mcp`
 - Agent integration: MCP registration, instructions and refresh hooks for Claude
   Code, GitHub Copilot and Kiro, written from a ledger and removable from it
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
@@ -28,7 +28,7 @@ product and the way it is installed, not its feature list.
   not ranked against the query at all
 - Incremental updates that cost what changed: stored similarity neighbour lists,
   refreshed only where a change can have reached them
-- 1430+ tests, every source file with a colocated spec, including that an
+- 1480+ tests, every source file with a colocated spec, including that an
   incremental update leaves exactly what a full rebuild would
 
 ## What to take from Graphify
@@ -198,23 +198,28 @@ Designed in [Distribution and lifecycle](distribution.md).
 - **`--dry-run` on both**, naming every file and key, because "what are you
   about to write in my repository" deserves an answer before the fact.
 
+- **One install gives the CLI and the MCP server.** `graphdog` depends on
+  `@graphdog/mcp` and serves the protocol as `graphdog mcp`, which is what the
+  registration names -- `npm install -g graphdog` does not put `graphdog-mcp` on
+  anyone's `PATH`, so registering that would have failed at the agent's first
+  search.
+- **`--purge --yes`** deletes GraphDog's own data: home corpora whole, and the
+  project's built indexes, never a project's corpus config. On its own `--purge`
+  lists what it would delete with sizes and refuses. Homebrew cannot do this
+  part: `brew uninstall` removes only what it installed, and `--zap` is for casks.
+- **`graphdog doctor`** reports everything installed and anything broken, exits
+  non-zero on broken and not on a warning, and never loads an embedding model to
+  find out.
+- **Hooks** -- item 4.
+- **The Homebrew formula**, in [`packaging/homebrew/`](../../packaging/homebrew/),
+  with a script that fetches the published tarball's checksum rather than having
+  anyone type it.
+
 **Still to build:**
 
-- **Homebrew**, from the tap `4moda/homebrew-graphdog` (`brew install 4moda/graphdog/graphdog`) and in
-  homebrew-core once GraphDog meets its acceptance policy. Upgrade and removal
-  are `brew upgrade` and `brew uninstall`. npm remains for Windows without WSL
-  and for CI.
-- **One install gives the CLI and the MCP server**: the `graphdog` package
-  depends on `@graphdog/mcp` and exposes it as `graphdog mcp`. The packages stay
-  separate. Until then the registration names `graphdog-mcp`, which is the
-  binary that exists.
-- **Hooks** -- item 4, and the reason it is part of `install` rather than beside it.
-- **`--purge`**, deleting GraphDog's own data after listing it with sizes and
-  asking. Homebrew cannot do this part: `brew uninstall` removes only what it
-  installed, and `--zap` is for casks.
-- **`graphdog doctor`** reporting everything installed and anything broken,
-  including integrations written by an older version and corpora this version
-  cannot read.
+- **The tap repository**, `4moda/homebrew-graphdog`, so `brew install
+  4moda/graphdog/graphdog` works; homebrew-core once GraphDog meets its
+  acceptance policy. npm remains for Windows without WSL and for CI.
 - **Extras and model caches move out of the install directory**, so a
   `brew upgrade` does not silently drop semantic search.
 

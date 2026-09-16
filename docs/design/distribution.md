@@ -2,9 +2,11 @@
 
 How GraphDog gets onto a machine, into an agent, up to date, and back off again.
 
-**Built so far:** `graphdog install --platform <name>` and `graphdog uninstall`,
-with the ledger behind them. **Not yet:** the Homebrew tap, the hooks, `doctor`,
-`extras` and `--purge`. The only channel today is `npm install -g graphdog`.
+**Built:** `graphdog install --platform <name>`, the refresh hooks,
+`graphdog uninstall` with `--purge`, `graphdog doctor`, and the Homebrew formula
+in [`packaging/homebrew/`](../../packaging/homebrew/). **Not yet:** the tap
+repository itself, Kiro's agent hooks, and moving extras and model caches out of
+the install directory.
 
 The goal is the product shape Graphify has shown works, not its feature list:
 one install, one command to connect an agent, one command to upgrade, and an
@@ -153,8 +155,13 @@ would leave somebody with an integration that silently does nothing.
   `<!-- /graphdog -->`) that coexists with other tools' blocks --
   code-review-graph has its own in the same file -- and never touches anything
   outside its markers. Both carry the version that wrote them.
-- **The MCP registration runs `graphdog-mcp`** from `PATH`, not a Homebrew
-  Cellar path, so it survives upgrades, and not `npx`, so it never downloads.
+- **The MCP registration runs `graphdog mcp`** from `PATH`, not a Homebrew
+  Cellar path -- which an upgrade replaces -- and not `npx`, which would make an
+  agent's first search a download. The subcommand rather than the `graphdog-mcp`
+  binary: that one ships in `@graphdog/mcp`, which `npm install -g graphdog`
+  does not put on anyone's `PATH`, so registering it would be an integration
+  that fails at the first search. `graphdog` now depends on `@graphdog/mcp` and
+  serves the protocol itself.
 - **Read-only by default.** `--allow-write` stays an explicit choice at install
   time, as it is for the MCP server today.
 - **Steer, never block.** No hook that stops an agent reading a file.
@@ -271,7 +278,7 @@ Common to all of them:
 - Recorded in the same ledger as everything else, and removed by
   `graphdog uninstall`.
 
-### `graphdog uninstall [--platform <name>] [--project] [--purge]` -- built, without `--purge`
+### `graphdog uninstall [--platform <name>] [--project] [--purge --yes]` -- built
 
 Takes back what `install` wrote.
 
@@ -288,15 +295,18 @@ Takes back what `install` wrote.
   holds somebody else's file stays.
 - **No platform named means every platform, and both scopes.** "Take it off"
   that leaves the other scope behind is the uninstall people complain about.
-- `--purge` additionally deletes GraphDog's own data after listing it with sizes
-  and asking: home-workspace corpora, optional extras, the model cache. With
-  `--project`, it also deletes the project's built indexes.
+- `--purge` additionally deletes GraphDog's own data: home-workspace corpora
+  whole, and the project's built indexes. On its own it lists what it would
+  delete, with sizes, and **refuses**; `--yes` confirms it. A confirmation flag
+  rather than a prompt, because agents and scripts drive this command too and a
+  prompt they cannot answer is a hang. (Optional extras and the model cache join
+  this once they move to `~/.graphdog/`.)
 - **Never deleted, even with `--purge`:** a project's corpus configs
   (`.graphdog/corpora/*/graphdog.json`). They are the project's files, and may be
   committed.
 - `--dry-run` shows what would go.
 
-### `graphdog doctor` -- not built
+### `graphdog doctor` -- built
 
 One report of everything installed and anything wrong:
 
@@ -311,9 +321,16 @@ hooks       /repo post-commit ok
 corpora     docs: schema 2 needed, built with 1 -> graphdog build --full --corpus docs
 ```
 
-It exits non-zero when something is broken -- a registration pointing at a
-command that no longer exists, a corpus this version cannot read -- so it can
-run in CI or after an upgrade script.
+It exits non-zero (5) when something is **broken** -- a file an install wrote
+that has since gone, a corpus built against another schema, a database that
+cannot be read -- so it can run in CI or after an upgrade script. A **warning**,
+such as an integration an older version wrote, is worth knowing and is not a
+failure.
+
+It never loads an embedding model. A semantic corpus's compatibility is decided
+by comparing recorded identities, and instantiating the embedder to find that
+out could mean a download -- from the command whose whole job is telling you
+whether things are in order.
 
 ### `graphdog extras add <semantic|pdf|docx>` -- not built
 
@@ -374,7 +391,8 @@ brew untap 4moda/graphdog        # if nothing else comes from the tap
 
 ## Decided
 
-- the tap is `4moda/homebrew-graphdog`
+- the tap is `4moda/homebrew-graphdog`; the formula and its release procedure
+  live in [`packaging/homebrew/`](../../packaging/homebrew/)
 - the first platforms are Claude Code, GitHub Copilot and Kiro
 - integration is a CLI command, `graphdog install --platform <name>`
 - keeping the index current uses each platform's own mechanism -- hooks where
@@ -392,5 +410,5 @@ brew untap 4moda/graphdog        # if nothing else comes from the tap
 - whether `SessionStart` should refresh before the session's first search or in
   the background behind it: two seconds of latency when a session opens against
   a first search that may read last session's index
-- whether `graphdog mcp` replaces the separate `graphdog-mcp` binary or sits
-  beside it
+- whether the separate `graphdog-mcp` binary is worth keeping now that
+  `graphdog mcp` exists, or should be retired at the next major version

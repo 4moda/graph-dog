@@ -19,7 +19,7 @@ import { chmod, readdir, readFile, rm, rmdir, stat, writeFile, mkdir } from "nod
 import { dirname, join, resolve } from "node:path";
 
 import { VERSION } from "../version.ts";
-import { ConfigError } from "../domain/errors.ts";
+import { ConfigError, ConflictError } from "../domain/errors.ts";
 import {
   findInstallations,
   removeInstallations,
@@ -51,7 +51,13 @@ import {
   type JsonObject,
 } from "../infrastructure/integration/json-config-file.ts";
 import { readLedger, writeLedger } from "../infrastructure/integration/installation-ledger.ts";
-import { findProjectWorkspace } from "../infrastructure/config/workspace.ts";
+import {
+  corpusDir,
+  corpusStorePath,
+  findProjectWorkspace,
+  homeWorkspace,
+  listCorpusNames,
+} from "../infrastructure/config/workspace.ts";
 
 const MARKERS = htmlMarkers(INTEGRATION_NAME);
 const SCRIPT_MARKERS = hashMarkers(INTEGRATION_NAME);
@@ -59,9 +65,11 @@ const SCRIPT_MARKERS = hashMarkers(INTEGRATION_NAME);
 /** What happened to one file, key or block. */
 export interface IntegrationChange {
   readonly action: "created" | "updated" | "removed" | "unchanged" | "absent";
-  readonly kind: InstalledArtifact["kind"];
+  readonly kind: InstalledArtifact["kind"] | "data";
   readonly path: string;
   readonly at: string | null;
+  /** Size on disk, for the data a purge would delete. Null for everything else. */
+  readonly bytes?: number;
 }
 
 export interface IntegrationOutcome {
@@ -93,6 +101,16 @@ export interface UninstallIntegrationOptions {
   readonly platform?: string;
   readonly scope?: IntegrationScope;
   readonly dryRun?: boolean;
+  /** Also delete GraphDog's own data: built indexes and home-workspace corpora. */
+  readonly purge?: boolean;
+  /**
+   * Say yes to the purge.
+   *
+   * `--purge` on its own lists what it would delete, with sizes, and refuses.
+   * A confirmation flag rather than a prompt because agents and scripts drive
+   * this command too, and a prompt they cannot answer is a hang.
+   */
+  readonly confirmed?: boolean;
   readonly cwd?: string;
   readonly logger?: Logger;
 }
@@ -450,6 +468,21 @@ export async function uninstallAgentIntegration(
   const changes: IntegrationChange[] = [];
   for (const artifact of dedupe(wanted)) changes.push(await removeArtifact(artifact, dryRun));
 
+  if (options.purge === true) {
+    const targets = await purgeTargets(cwd, scopes);
+    if (options.confirmed !== true && !dryRun) {
+      throw new ConflictError("--purge deletes indexed data; re-run with --yes to confirm", {
+        would_delete: targets.map((target) => target.path),
+        bytes: targets.reduce((total, target) => total + target.bytes, 0),
+        remedy: "graphdog uninstall --purge --yes",
+      });
+    }
+    for (const target of targets) {
+      if (!dryRun) await rm(target.path, { recursive: true, force: true });
+      changes.push({ action: "removed", kind: "data", path: target.path, at: null, bytes: target.bytes });
+    }
+  }
+
   if (!dryRun) {
     const { ledger: after } = removeInstallations(ledger, query);
     await writeLedger(after);
@@ -561,6 +594,52 @@ async function pruneEmptyParents(path: string, levels = 3): Promise<void> {
     }
     directory = dirname(directory);
   }
+}
+
+/**
+ * GraphDog's own data, and what it weighs.
+ *
+ * A project's corpus *configs* are never here. They describe what to index, may
+ * be committed, and are the project's file -- deleting them would make
+ * `--purge` destroy work rather than free space. Only the built indexes go, and
+ * `graphdog build` puts those back.
+ */
+async function purgeTargets(
+  cwd: string,
+  scopes: readonly IntegrationScope[],
+): Promise<Array<{ path: string; bytes: number }>> {
+  const targets: Array<{ path: string; bytes: number }> = [];
+
+  // The home workspace is GraphDog's alone -- imported archives live here --
+  // so a corpus in it goes whole, config and all.
+  const home = homeWorkspace();
+  for (const name of await listCorpusNames(home).catch(() => [])) {
+    const path = corpusDir(home, name);
+    targets.push({ path, bytes: await pathSize(path) });
+  }
+
+  if (scopes.includes("project")) {
+    const workspace = await findProjectWorkspace(cwd);
+    if (workspace !== null) {
+      for (const name of await listCorpusNames(workspace).catch(() => [])) {
+        for (const suffix of ["", "-wal", "-shm"]) {
+          const path = `${corpusStorePath(workspace, name)}${suffix}`;
+          const bytes = await pathSize(path);
+          if (bytes > 0 || suffix === "") targets.push({ path, bytes });
+        }
+      }
+    }
+  }
+  return targets;
+}
+
+async function pathSize(path: string): Promise<number> {
+  const info = await stat(path).catch(() => null);
+  if (info === null) return 0;
+  if (info.isFile()) return info.size;
+  let total = 0;
+  for (const name of await readdir(path).catch(() => [])) total += await pathSize(join(path, name));
+  return total;
 }
 
 // --- shared ------------------------------------------------------------------
