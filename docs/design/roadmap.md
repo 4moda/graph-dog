@@ -267,18 +267,45 @@ per document -- moved every metric on the built-in dataset at once:
 | nDCG@10 | 0.536 | **0.632** |
 | queries that missed entirely | 2 | **0** |
 
+**Citation is the weakness, and it is not a PDF weakness.** The gate's 13 failing
+questions all retrieve the right document at rank 1 and cite the wrong page --
+retrieval is not the problem, locating the answer inside a long document is. The
+failures split in half:
+
+| | | |
+|---|---|---|
+| **6** | off by one page | the heading is on one page and the answer on the next |
+| **7** | 4 to 80 pages away | a different section of a 90-page document matched better |
+
+The second group is format-independent by construction, and the numbers say so.
+The docs suite -- Markdown, judged by line range -- sits at **0.591** against the
+PDF suite's 0.768. The two units differ, a page being coarser than a line range,
+so they are not directly comparable; what is comparable is that nothing here
+points at PDFs as the weak format. Converting PDFs to Markdown would move the
+corpus into the format that currently measures worse, and would cost the page
+citation that lets a reader open the original.
+
+That 0.591 is itself new: the docs suite's judgments had decayed. They point
+into this repository's own design documents, which these last few weeks
+rewrote, so the suite was reporting moved paragraphs as wrong citations --
+`scripts/relocate-judgments.mjs` moves a judgment to wherever its passage went,
+and refuses to guess when a passage was rewritten rather than moved.
+
 **What the suites still show, and what is left to do here:**
 
-- **Citations land on the wrong page.** On `allganize-ja` page-level evidence is
-  0.768 overall and 0.636 for the IT documents: the right PDF, the wrong page,
-  one time in three. Chunking a 40-page PDF by characters and citing the best
-  chunk is what this measures, and it is now the largest single weakness in the
-  gate. Ranking cannot fix it; chunking that respects page boundaries can.
+- **Citations land in the wrong place, in both formats.** Chunks already never
+  span a page, so the remaining off-by-one cases are the opposite problem: the
+  page split separates a heading from what it introduces. The 7 far-away cases
+  need the chunk that *answers* the question to outrank the chunk that merely
+  shares its words -- which is what a semantic embedder or a reranker is for,
+  and neither has ever been measured here.
 - **Paraphrase misses its section.** On the docs suite the two paraphrase
   queries find every judged document and cite the wrong section in each.
 - **No semantic measurement.** Every number on this page is the hashing
   embedder plus BM25. With dense retrieval now gated on `semantic`, the case for
-  a semantic default is a measurement nobody has taken.
+  a semantic default is a measurement nobody has taken -- and the 7 far-away
+  citation failures are exactly where it should show up. This is the next thing
+  to measure.
 - **Nothing measures what the graph is for.** Its recall contribution shows up
   on one query of one suite. The graph suite in item 1 is what would price it.
 

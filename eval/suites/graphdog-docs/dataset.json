@@ -12,12 +12,12 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 3,
-          "lines": "166-172"
+          "lines": "171-176"
         },
         {
           "ref": "docs/design/architecture.md",
           "grade": 2,
-          "lines": "144-157"
+          "lines": "151-161"
         }
       ]
     },
@@ -29,7 +29,7 @@
         {
           "ref": "docs/design/architecture.md",
           "grade": 3,
-          "lines": "132-143"
+          "lines": "137-147"
         }
       ]
     },
@@ -40,12 +40,12 @@
         {
           "ref": "docs/design/architecture.md",
           "grade": 3,
-          "lines": "196-208"
+          "lines": "269-280"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "199-207"
+          "lines": "249-257"
         }
       ]
     },
@@ -56,7 +56,7 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 3,
-          "lines": "240-249"
+          "lines": "290-298"
         }
       ]
     },
@@ -68,12 +68,12 @@
         {
           "ref": "docs/design/architecture.md",
           "grade": 3,
-          "lines": "227-239"
+          "lines": "302-311"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "219-229"
+          "lines": "269-279"
         }
       ]
     },
@@ -84,7 +84,7 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "467-499"
+          "lines": "488-518"
         }
       ]
     },
@@ -96,7 +96,7 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "96-126"
+          "lines": "98-145"
         }
       ]
     },
@@ -107,12 +107,12 @@
         {
           "ref": "docs/design/architecture.md",
           "grade": 3,
-          "lines": "175-195"
+          "lines": "212-229"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "87-101"
+          "lines": "87-99"
         }
       ]
     },
@@ -123,7 +123,7 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 3,
-          "lines": "55-65"
+          "lines": "55-64"
         }
       ]
     },
@@ -134,7 +134,7 @@
         {
           "ref": "docs/design/decisions.md",
           "grade": 3,
-          "lines": "18-42"
+          "lines": "18-40"
         }
       ]
     },
@@ -146,12 +146,12 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "156-166"
+          "lines": "178-184"
         },
         {
           "ref": "docs/design/contract.md",
           "grade": 1,
-          "lines": "221-247"
+          "lines": "241-266"
         }
       ]
     },
@@ -162,12 +162,12 @@
         {
           "ref": "docs/design/architecture.md",
           "grade": 3,
-          "lines": "3-18"
+          "lines": "6-17"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "43-54"
+          "lines": "45-53"
         }
       ]
     },
@@ -179,7 +179,7 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "127-155"
+          "lines": "147-174"
         }
       ]
     },
@@ -190,17 +190,17 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "368-430"
+          "lines": "390-449"
         },
         {
           "ref": "docs/design/architecture.md",
           "grade": 2,
-          "lines": "254-268"
+          "lines": "327-341"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "173-187"
+          "lines": "223-236"
         }
       ]
     },
@@ -212,17 +212,17 @@
         {
           "ref": "docs/design/contract.md",
           "grade": 3,
-          "lines": "283-367"
+          "lines": "303-386"
         },
         {
           "ref": "docs/design/decisions.md",
           "grade": 2,
-          "lines": "102-114"
+          "lines": "104-113"
         },
         {
           "ref": "docs/design/architecture.md",
           "grade": 2,
-          "lines": "209-226"
+          "lines": "284-298"
         }
       ]
     }
