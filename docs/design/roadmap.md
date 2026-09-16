@@ -321,13 +321,35 @@ moved **nothing at all**: the same 13 questions fail identically, because the
 document already ranks first and reranking the shortlist does not change which
 chunk of it is cited.
 
-So the two groups want different things, and neither wants a better model:
+**The two groups are one problem.** Reading the failing pages says so, and the
+page delta had been standing in for a diagnosis. In all six off-by-one cases the
+correct page is the **second** BM25 hit within the same document, one rank behind
+the page that beat it -- their fused scores are 1.000 and 0.984, which is exactly
+what one RRF rank apart looks like and not a difference in relevance at all. And
+the winner is always the page that *announces* the topic while the loser is the
+page that answers it: p4 carries "5.1.3 Confirming conformity with the
+functional standard", p5 carries the criteria; p12 carries "the conformity date
+shall be set as follows", p13 carries the table. BM25 is not wrong that the
+first page matches the question's words better. The answer is on the second.
 
-- **off-by-one** is a chunking artifact. Splitting on pages puts a heading on one
-  page and what it introduces on the next, and no embedder reaches across that.
-- **far-away** is genuine within-document ranking, where lexical and semantic
-  disagree question by question. Something that uses both, rather than either,
-  is the direction -- which is a fusion question, not a model question.
+That is the same failure as the far-away group with a smaller number attached,
+so there is no small tractable subset here: **the chunk whose words best match a
+question is not the chunk that answers it**, and every one of the 13 is that.
+It also explains why the semantic model fixed none of these while fixing four
+far-away ones -- both candidates are about the same topic, so semantic
+similarity does not separate them either.
+
+Two hypotheses died on the way, and are recorded so nobody spends the afternoon
+again:
+
+- **"Chunks straddle pages."** They never have: `splitOnPages` predates this.
+- **"BM25 cannot see a chunk's heading, only the chunk that contains it."** True,
+  and irrelevant here -- all 565 chunks of the PDF corpus have an empty
+  `headingPath`, because headings come from Markdown syntax and extracted PDF
+  text has none. Indexing the heading with each chunk was tried anyway, for the
+  consistency argument that the embedder already gets it: no effect on the gate,
+  and on the docs suite it trades the thing being fixed for another one --
+  MRR +0.067 and nDCG +0.039 against citation -0.045. Reverted.
 
 On the docs suite, where retrieval *did* have headroom, the semantic model helps
 across the board: recall 0.911 to 0.933, MRR 0.744 to 0.817, nDCG 0.750 to 0.815,
