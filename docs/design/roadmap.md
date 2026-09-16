@@ -136,6 +136,21 @@ What the original dataset could not carry:
     The four it answers are the near ones, and Japanese politeness boilerplate
     is part of why: "...について説明してください" shares bigrams with anything,
     so a question's register lifts its coverage before its subject does.
+
+    **And it does not hold at scale, which is the next thing to fix.** The 0.25
+    floor was calibrated on fifteen documents. On SciFact -- 5,183 documents,
+    12,110 chunks -- the distributions stop separating altogether: real queries
+    cover 0.312 to 1.000, and "the plot of Hamlet" covers 0.427, "how long do
+    cats live" 0.531. Abstention there is 2 of 10, and both refusals come from
+    the old degenerate path of a query matching nothing at all rather than from
+    the threshold. With enough chunks, every query finds some of its words
+    somewhere, so an absolute *level* of coverage cannot be the signal.
+
+    What might survive scale is the *shape* of the score distribution rather
+    than its level: for a question the corpus answers, the top hit stands out
+    from the candidates below it; for one it cannot, everything is equally
+    mediocre. That is a ratio, and ratios do not drift with corpus size the way
+    levels do. It wants measuring on both corpora before it is believed.
   - No query that needs the graph, so nothing shows the graph signal earns its
     place.
   - One corpus at a time, so the cross-corpus merge is unmeasured.

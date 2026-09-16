@@ -32,7 +32,7 @@ leave you to trust it. An agent needs something different — a result it can
 |---|---|
 | **Verifiable** | Every hit carries `ref` + line range. `read` returns that span verbatim. |
 | **Explainable** | Every hit reports what dense, BM25, graph and rerank each contributed, and the edge chain that reached it. |
-| **Honest** | Nothing matched? It says so, with a dedicated exit code — it does not return the least-bad rows. Measured: it turns away 6 of 8 questions with no answer in the corpus, and refuses none of the 56 that have one. |
+| **Honest** | Nothing matched? It says so, with a dedicated exit code — it does not return the least-bad rows. Measured on the 15-document gate: 6 of 10 unanswerable questions turned away, and none of the 56 answerable ones. **Not yet at scale** — on a 5,183-document corpus the same threshold turns away 2 of 10, because with that many chunks almost any query finds some of its words somewhere. |
 | **Portable** | A corpus is one SQLite file with its identities recorded. Copy it; a mismatched reader refuses rather than guesses. |
 | **Offline** | Default install: no model download, no network, no service. |
 
