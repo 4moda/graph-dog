@@ -458,7 +458,7 @@ describe("application/usecase/buildCorpus: an update leaves what a rebuild would
       postings: ["rotation", "jwks", "token", "menu"].map((term) =>
         store.lexical
           .postingsFor([term])
-          .map((posting) => `${term}:${posting.chunkId}:${posting.termFrequency}`)
+          .map((posting) => `${term}:${posting.chunkId}:${posting.tf}:${posting.df}`)
           .sort(),
       ),
       graph: {
