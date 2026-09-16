@@ -21,7 +21,8 @@ product and the way it is installed, not its feature list.
   `export`, `import`
 - MCP: `search`, `explore`, `read`, `status`, `list_corpora`, `build_corpus` (write-gated)
 - Compatibility gate, freshness reporting, auditable exclusions and failures
-- 1290+ tests, every source file with a colocated spec
+- 1290+ tests, every source file with a colocated spec, including that an
+  incremental update leaves exactly what a full rebuild would
 
 ## What to take from Graphify
 
@@ -69,10 +70,13 @@ is a ranking or graph change, and lands with a before-and-after from item 1.
 
 **The gate has moved to a frozen, external suite.** CI now gates on
 `allganize-ja` (see [its README](../../eval/suites/allganize-ja/README.md)):
-ten Japanese government PDFs, committed and pinned by SHA-256, with 54
+fifteen Japanese government PDFs, committed and pinned by SHA-256, with 56
 questions written by Allganize rather than by GraphDog's authors, each judged by
-the page that answers it. Documents were chosen by a stated rule, never by
-results. GraphDog's own docs remain a suite that reports but does not gate.
+the page that answers it. Questions the dataset marks as answered by an image
+are left out: GraphDog extracts text and does not read images, so they would
+measure a capability it does not claim. Documents were chosen by a stated rule,
+never by results. GraphDog's own docs remain a suite that reports but does not
+gate.
 
 Building it found three things before a single number was trusted:
 
@@ -221,12 +225,13 @@ What the dataset still shows, now at 15 queries:
 On the gating suite (`allganize-ja`, k=3) the weak spots are different, and
 they are the ones to work on:
 
-- **Answers inside images.** MRR 0.656 and page-level evidence 0.714 for
-  questions whose answer sits in a figure, against 0.853 and 0.800 for
-  paragraphs. Text extraction cannot see an image; this is the gap OCR would
-  close, and it is now measured.
-- **Retail citations.** Page-level evidence 0.600: the right document, the
-  wrong page, four times in ten.
+- **Citations land on the wrong page.** Page-level evidence is 0.782 overall
+  and 0.600 for the IT documents: the right PDF, the wrong page, two times in
+  five. Chunking a 40-page PDF by characters, then citing the best chunk, is
+  what this measures.
+- **Ranking by domain.** MRR is 0.617 for retail and 0.648 for finance against
+  0.894 for manufacturing; the harder domains are the ones whose answers are
+  spread over long documents.
 - **Below plain BM25 on SciFact.** A trial on the public SciFact set scored
   nDCG@10 0.559 with the default fused pipeline, against 0.665 published for
   BM25 alone. Whether fusion with the hashing embedder and the graph drags BM25

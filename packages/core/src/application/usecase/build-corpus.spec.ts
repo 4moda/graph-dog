@@ -408,3 +408,99 @@ describe("application/usecase/buildCorpus: report reconciliation", () => {
     assert.equal(report.failures.length, 1);
   });
 });
+
+describe("application/usecase/buildCorpus: an update leaves what a rebuild would", () => {
+  const before = {
+    "keys.md": "# Key Management\n\nPublic keys are published at the JWKS endpoint. See [tokens](token.md).\n\n## Rotation\n\nSigning keys rotate every 30 days.\n",
+    "token.md": "# Access Token\n\nTokens are JWT values signed with ES256. #auth\n",
+    "old.md": "# Deprecated\n\nThis page is about to be deleted.\n",
+    "notes.md": "# Notes\n\nUnrelated notes about the cafeteria menu.\n",
+  };
+  const after = {
+    "keys.md": "# Key Management\n\nPublic keys are published at the JWKS endpoint. See [tokens](token.md).\n\n## Rotation\n\nSigning keys now rotate every 7 days, and the JWKS cache lives for 60 seconds.\n",
+    "token.md": before["token.md"],
+    "new.md": "# Incident runbook\n\nIf JWKS rotation fails, page the on-call engineer. See [keys](keys.md). #auth\n",
+    "notes.md": before["notes.md"],
+  };
+
+  /** Everything the corpus holds that a query can reach, in a comparable shape. */
+  function snapshot(store: InMemoryStore): unknown {
+    const refs = store.documents.listRefs();
+    const chunkIds = [...store.chunks.ownerMap().keys()].sort();
+    const chunks = store.chunks.getMany(chunkIds);
+    const neighbourhood = store.graph.neighborhood(refs, 500);
+    return {
+      documents: refs.map((ref) => {
+        const document = store.documents.get(ref);
+        return {
+          ref,
+          title: document?.title,
+          contentHash: document?.contentHash,
+          text: document?.text,
+          tags: document?.tags,
+          links: document?.links,
+          totalLines: document?.totalLines,
+        };
+      }),
+      chunks: chunkIds.map((chunkId) => {
+        const chunk = chunks.get(chunkId);
+        return {
+          chunkId,
+          ref: chunk?.ref,
+          ordinal: chunk?.ordinal,
+          text: chunk?.text,
+          location: chunk?.location,
+          headingPath: chunk?.headingPath,
+          tokenCount: chunk?.tokenCount,
+        };
+      }),
+      statistics: store.lexical.statistics(),
+      postings: ["rotation", "jwks", "token", "menu"].map((term) =>
+        store.lexical
+          .postingsFor([term])
+          .map((posting) => `${term}:${posting.chunkId}:${posting.termFrequency}`)
+          .sort(),
+      ),
+      graph: {
+        nodes: neighbourhood.nodes.map((node) => `${node.id}|${node.kind}|${node.label}`).sort(),
+        edges: neighbourhood.edges.map((edge) => `${edge.src}|${edge.dst}|${edge.kind}|${edge.weight}`).sort(),
+        counts: [store.graph.nodeCount(), store.graph.edgeCount()],
+      },
+      identity: [
+        store.meta.get(CORPUS_META_KEYS.embeddingId),
+        store.meta.get(CORPUS_META_KEYS.chunkingFingerprint),
+        store.meta.get(CORPUS_META_KEYS.corpusName),
+      ],
+    };
+  }
+
+  it("matches a rebuild after a file changes, one is added and one is deleted", async () => {
+    // The promise an incremental index has to keep: what you get is what you
+    // would have got by indexing the final state from nothing. Chunk ids,
+    // BM25 statistics, similarity edges and link edges all depend on the whole
+    // corpus, so any of them could drift.
+    const updated = new InMemoryStore();
+    const source = new FakeSource({ ...before });
+    await buildCorpus({}, deps(updated, source));
+    source.files = { ...after };
+    const report = await buildCorpus({}, deps(updated, source));
+    assert.deepEqual(report.documents, { added: 1, modified: 1, deleted: 1, unchanged: 2 });
+
+    const rebuilt = new InMemoryStore();
+    await buildCorpus({}, deps(rebuilt, new FakeSource({ ...after })));
+
+    assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+  });
+
+  it("matches a rebuild when nothing changed at all", async () => {
+    const updated = new InMemoryStore();
+    const source = new FakeSource({ ...before });
+    await buildCorpus({}, deps(updated, source));
+    const report = await buildCorpus({}, deps(updated, source));
+    assert.equal(report.documents.unchanged, 4);
+
+    const rebuilt = new InMemoryStore();
+    await buildCorpus({}, deps(rebuilt, new FakeSource({ ...before })));
+    assert.deepEqual(snapshot(updated), snapshot(rebuilt));
+  });
+});

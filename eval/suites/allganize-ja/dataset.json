@@ -2,24 +2,12 @@
   "version": 1,
   "name": "allganize-ja",
   "corpus": "allganize-ja",
-  "description": "Questions from allganize/RAG-Evaluation-Dataset-JA (MIT, Allganize) at revision c3a756711f10, about 10 of its 65 documents. Each question is judged by the page that answers it. Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph, a table or an image.",
+  "description": "Questions from allganize/RAG-Evaluation-Dataset-JA (MIT, Allganize) at revision c3a756711f10, about 15 of its 65 documents. Each question is judged by the page that answers it. Questions whose answer sits in an image are left out: GraphDog extracts text and does not read images. Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph or a table.",
   "queries": [
     {
       "id": "aj-006",
       "query": "令和6年の景気動向に関する見通しについて、大企業非製造業の前回調査、現状判断、今後の見通しについてそれぞれ具体的な数値を上げ、上昇や下降の傾向を教えてください。",
       "note": "finance · table",
-      "relevant": [
-        {
-          "ref": "allganize/finance/1c202401.pdf",
-          "grade": 1,
-          "page": 1
-        }
-      ]
-    },
-    {
-      "id": "aj-007",
-      "query": "法人企業景気予測調査（令和６年４～６月期調査）の景況判断BSIについて、化学工業は前回調査からどの程度上昇しましたか？",
-      "note": "finance · image",
       "relevant": [
         {
           "ref": "allganize/finance/1c202401.pdf",
@@ -41,18 +29,6 @@
       ]
     },
     {
-      "id": "aj-009",
-      "query": "令和6年度通期において、売上高と経常利益の両方が共に前年同期比で増加した業種と、それらの増減率の詳細を挙げてください。また、その中で最も増加率が高い業種はどれでしょうか？",
-      "note": "finance · image",
-      "relevant": [
-        {
-          "ref": "allganize/finance/1c202401.pdf",
-          "grade": 1,
-          "page": 3
-        }
-      ]
-    },
-    {
       "id": "aj-010",
       "query": "大企業と中小企業の設備投資の目的について、「維持更新」と「生産能力の拡大」に対する優先度に違いはありますか？",
       "note": "finance · table",
@@ -65,62 +41,74 @@
       ]
     },
     {
-      "id": "aj-001",
-      "query": "火災保険の収益悪化に対し、損害保険各社はどのような収益改善策を講じているか、具体的な例を挙げて説明してください。さらに、これらの改善策がどのように保険引受利益に影響を与えたかについても教えてください。",
+      "id": "aj-015",
+      "query": "金融機関によるベンチャー投資について、国の方向性を教えてください。",
       "note": "finance · paragraph",
       "relevant": [
         {
-          "ref": "allganize/finance/01.pdf",
+          "ref": "allganize/finance/230829_main.pdf",
           "grade": 1,
-          "page": 4
+          "page": 12
         }
       ]
     },
     {
-      "id": "aj-002",
-      "query": "2017年度から2021年度までのどの年が最も自然災害の保険金支払額が高かったか？また、その理由についても説明しなさい。",
-      "note": "finance · image",
-      "relevant": [
-        {
-          "ref": "allganize/finance/01.pdf",
-          "grade": 1,
-          "page": 5
-        }
-      ]
-    },
-    {
-      "id": "aj-003",
-      "query": "主要生保のソルベンシー・マージン比率の推移を考慮すると、令和5年3月期の比率が令和3年3月期と比べてどのような変動を示しているか。",
-      "note": "finance · image",
-      "relevant": [
-        {
-          "ref": "allganize/finance/01.pdf",
-          "grade": 1,
-          "page": 6
-        }
-      ]
-    },
-    {
-      "id": "aj-004",
-      "query": "生命保険協会や金融庁は保険代理店の業務品質評価運営に対してどのような具体的な取組みや対策を講じているのか、またその背景にはどのような課題や目的があるのか説明してください。",
+      "id": "aj-016",
+      "query": "日本における2022年の海外大手暗号資産交換所の破綻の影響について、国内制度はどのように寄与したか。また、その経験を受けて金融庁は国際的対応や国内利用者の保護策をどのように強化する予定か？",
       "note": "finance · paragraph",
       "relevant": [
         {
-          "ref": "allganize/finance/01.pdf",
+          "ref": "allganize/finance/230829_main.pdf",
           "grade": 1,
-          "page": 8
+          "page": 17
         }
       ]
     },
     {
-      "id": "aj-005",
-      "query": "外貨建保険の販売による苦情件数および苦情発生率の変動傾向について教えてください。また、外貨建保険の苦情の背景も合わせて示してください。",
+      "id": "aj-017",
+      "query": "主要行が市場・流動性リスク管理態勢を高度化する上で、資産と負債の総合管理や有価証券運用に関してどのような対応が求められるか？",
       "note": "finance · paragraph",
       "relevant": [
         {
-          "ref": "allganize/finance/01.pdf",
+          "ref": "allganize/finance/230829_main.pdf",
           "grade": 1,
-          "page": 10
+          "page": 23
+        }
+      ]
+    },
+    {
+      "id": "aj-043",
+      "query": "2022年6月時点で、ウォレット総数が最も多いDeFiはどれか。DeFiの名称やウォレット総数について教えてください。",
+      "note": "finance · table",
+      "relevant": [
+        {
+          "ref": "allganize/finance/jimukyoku.pdf",
+          "grade": 1,
+          "page": 7
+        }
+      ]
+    },
+    {
+      "id": "aj-044",
+      "query": "アメリカでは、DeFiサービスによる不正取引の危険性について、AML/CFTを含めどのように捉えているか。また、暗号資産にAML/CFTに関する監督の強化方法として、どのような提言を行なっているか具体的に説明してください。",
+      "note": "finance · table",
+      "relevant": [
+        {
+          "ref": "allganize/finance/jimukyoku.pdf",
+          "grade": 1,
+          "page": 9
+        }
+      ]
+    },
+    {
+      "id": "aj-045",
+      "query": "アメリカにおいて、証券に該当するデジタル資産のインサイダー取引をどのように法律で規制しているのか。具体的に教えてください。",
+      "note": "finance · table",
+      "relevant": [
+        {
+          "ref": "allganize/finance/jimukyoku.pdf",
+          "grade": 1,
+          "page": 20
         }
       ]
     },
@@ -149,30 +137,6 @@
       ]
     },
     {
-      "id": "aj-070",
-      "query": "パーソナルデータの提供時にユーザがどのようなことを重視しているか、日本と米国の違いについて説明してください。",
-      "note": "it · image",
-      "relevant": [
-        {
-          "ref": "allganize/it/01point.pdf",
-          "grade": 1,
-          "page": 5
-        }
-      ]
-    },
-    {
-      "id": "aj-071",
-      "query": "ファクトチェックに対する日本の認知度はどの程度か。アメリカや韓国との比較についても説明してください。",
-      "note": "it · image",
-      "relevant": [
-        {
-          "ref": "allganize/it/01point.pdf",
-          "grade": 1,
-          "page": 7
-        }
-      ]
-    },
-    {
       "id": "aj-072",
       "query": "スマートフォンの個人保有率、5Gに対応したスマートフォンの出荷台数、5Gの人工カバー率はどれくらいか。それぞれ具体的な数値や変化率などについて教えてください。",
       "note": "it · table",
@@ -193,18 +157,6 @@
           "ref": "allganize/it/01point.pdf",
           "grade": 1,
           "page": 11
-        }
-      ]
-    },
-    {
-      "id": "aj-080",
-      "query": "スプリントレトロスペクティブとスプリントレビューの違いを教えてください。",
-      "note": "it · image",
-      "relevant": [
-        {
-          "ref": "allganize/it/20220422_resources_standard_guidelines_guidebook_01.pdf",
-          "grade": 1,
-          "page": 8
         }
       ]
     },
@@ -257,62 +209,134 @@
       ]
     },
     {
-      "id": "aj-130",
-      "query": "げっ歯類を用いた長期がん原性試験で使用する動物種については、どのような事項を考慮する必要があるか。また、動物の数や年齢など推奨されている条件も示してください。",
-      "note": "manufacturing · paragraph",
+      "id": "aj-066",
+      "query": "クラウドサービスにおけるIAMとはどのようなサービスですか。推奨されるIAMの設定方法についても教えてください。",
+      "note": "it · table",
       "relevant": [
         {
-          "ref": "allganize/manufacturing/000251332.pdf",
+          "ref": "allganize/it/000843318.pdf",
           "grade": 1,
-          "page": 9
+          "page": 56
         }
       ]
     },
     {
-      "id": "aj-131",
-      "query": "遺伝毒性試験について追加の実施が求められるのは、どのような場合か。追加試験の方法についても具体的に説明しなさい。",
-      "note": "manufacturing · paragraph",
+      "id": "aj-067",
+      "query": "クラウドサービス事業者は、クラウドサービス設定における不備を低減、防止するために、どのような対策が求められるか。具体的に説明してください。",
+      "note": "it · table",
       "relevant": [
         {
-          "ref": "allganize/manufacturing/000251332.pdf",
+          "ref": "allganize/it/000843318.pdf",
           "grade": 1,
-          "page": 14
+          "page": 83
         }
       ]
     },
     {
-      "id": "aj-132",
-      "query": "日本と米国ではがん原性試験が要求される基準がどのように異なるのか、詳しく説明してください。",
-      "note": "manufacturing · paragraph",
+      "id": "aj-091",
+      "query": "クラウドサービスの普及に伴って、社会にどのような影響があったとされていますか？",
+      "note": "it · paragraph",
       "relevant": [
         {
-          "ref": "allganize/manufacturing/000251332.pdf",
+          "ref": "allganize/it/000843318.pdf",
           "grade": 1,
-          "page": 15
+          "page": 11
         }
       ]
     },
     {
-      "id": "aj-133",
-      "query": "WoE要素が決定的でない場合や、発がん性の懸念を示す場合、医薬品開発者はどのような探策的アプローチを適用することができるか。",
-      "note": "manufacturing · paragraph",
+      "id": "aj-173",
+      "query": "石けんやシャンプーなどの直ちに洗い流す化粧品におけるチラムの上限値は何gですか？",
+      "note": "manufacturing · table",
       "relevant": [
         {
-          "ref": "allganize/manufacturing/000251332.pdf",
+          "ref": "allganize/manufacturing/keshouhin-standard.pdf",
           "grade": 1,
-          "page": 26
+          "page": 4
         }
       ]
     },
     {
-      "id": "aj-137",
-      "query": "労働災害（業務災害）の対象範囲となる労働者の雇用形態はどのようなものか？",
-      "note": "manufacturing · image",
+      "id": "aj-174",
+      "query": "粘膜に使用されることがない化粧品において、ユビデカレノンの最大配合量は何グラムですか？",
+      "note": "manufacturing · table",
       "relevant": [
         {
-          "ref": "allganize/manufacturing/110329-1a.pdf",
+          "ref": "allganize/manufacturing/keshouhin-standard.pdf",
           "grade": 1,
-          "page": 3
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-175",
+      "query": "化粧品へサリチル酸塩類を配合する場合、最大配合量は何グラムですか？",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/keshouhin-standard.pdf",
+          "grade": 1,
+          "page": 6
+        }
+      ]
+    },
+    {
+      "id": "aj-125",
+      "query": "自動車部品のリユースとリビルドの違いを説明してください。",
+      "note": "manufacturing · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000040369.pdf",
+          "grade": 1,
+          "page": 8
+        }
+      ]
+    },
+    {
+      "id": "aj-126",
+      "query": "自動車のリユース部品のボンネットフードに含まれるASSY部品はいくつですか？部品名も教えてください。",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000040369.pdf",
+          "grade": 1,
+          "page": 36
+        }
+      ]
+    },
+    {
+      "id": "aj-127",
+      "query": "製品の販売開始から7年経過した自動車をASSY単位でリユースしたい場合、年式はどれに該当するか。",
+      "note": "manufacturing · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000040369.pdf",
+          "grade": 1,
+          "page": 44
+        }
+      ]
+    },
+    {
+      "id": "aj-128",
+      "query": "トランクリッドのASSYについて、高年式、中年式、低年式どれも有効活用が可能か。また、トランクリッドのASSYの有効活用方法についても教えてください。",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000040369.pdf",
+          "grade": 1,
+          "page": 45
+        }
+      ]
+    },
+    {
+      "id": "aj-129",
+      "query": "車のフロント事故で部品を交換する場合、ボンネットとクーラーコンデンサーにおいて新品部品とリユース部品で何円の価格メリットが見込まれるか。参考価格をもとに教えてください。",
+      "note": "manufacturing · table",
+      "relevant": [
+        {
+          "ref": "allganize/manufacturing/000040369.pdf",
+          "grade": 1,
+          "page": 47
         }
       ]
     },
@@ -365,18 +389,6 @@
       ]
     },
     {
-      "id": "aj-192",
-      "query": "人気施設の特別入場チケットを返礼品として提供する場合、入場チケットの費用は、ふるさと納税に関するどのような費用で対応すれば良いですか？また、ふるさと納税の業務を行ったスタッフに支払われる人件費はどの費用に該当しますか？",
-      "note": "public · image",
-      "relevant": [
-        {
-          "ref": "allganize/public/000956094.pdf",
-          "grade": 1,
-          "page": 4
-        }
-      ]
-    },
-    {
       "id": "aj-193",
       "query": "令和5年10月1日から開始する指定対象期間において、ふるさと納税の募集費用の合計額が寄附金受領額の合計額の5割を超過した地方団体が指定の取消しとなる場合、その後の期間にどのような制約が課せられるか具体的に説明してください。",
       "note": "public · table",
@@ -425,14 +437,50 @@
       ]
     },
     {
-      "id": "aj-209",
-      "query": "デジタル田園健康特区に含まれる自治体はいくつですか？",
-      "note": "public · image",
+      "id": "aj-205",
+      "query": "地方公共団体が標準準拠システムを利用する前に確認しなければならない事項について、標準準拠システムの際に特定の機能が実装されているかどうかの確認方法について詳しく説明してください。",
+      "note": "public · paragraph",
       "relevant": [
         {
-          "ref": "allganize/public/20231102_sesaku3.pdf",
+          "ref": "allganize/public/20231027_policies_local_governments_outline_02.pdf",
           "grade": 1,
-          "page": 3
+          "page": 4
+        }
+      ]
+    },
+    {
+      "id": "aj-206",
+      "query": "地方公共団体情報システム標準に準拠したシステムは、どのような基準で判断できるのか？",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231027_policies_local_governments_outline_02.pdf",
+          "grade": 1,
+          "page": 5
+        }
+      ]
+    },
+    {
+      "id": "aj-207",
+      "query": "地方公共団体情報システムの標準化について、各業務システムは標準仕様書にいつまでに適合する必要があるのか。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231027_policies_local_governments_outline_02.pdf",
+          "grade": 1,
+          "page": 10
+        }
+      ]
+    },
+    {
+      "id": "aj-208",
+      "query": "令和5年3月末までに公表された標準仕様書に記載のある機能IDについて、適合基準日を教えてください。",
+      "note": "public · paragraph",
+      "relevant": [
+        {
+          "ref": "allganize/public/20231027_policies_local_governments_outline_02.pdf",
+          "grade": 1,
+          "page": 13
         }
       ]
     },
@@ -445,18 +493,6 @@
           "ref": "allganize/public/20231102_sesaku3.pdf",
           "grade": 1,
           "page": 6
-        }
-      ]
-    },
-    {
-      "id": "aj-211",
-      "query": "ドローンのレベル3飛行の規制関連について、政府が検討している改革案を教えてください。",
-      "note": "public · image",
-      "relevant": [
-        {
-          "ref": "allganize/public/20231102_sesaku3.pdf",
-          "grade": 1,
-          "page": 7
         }
       ]
     },
@@ -481,18 +517,6 @@
           "ref": "allganize/public/20231102_sesaku3.pdf",
           "grade": 1,
           "page": 11
-        }
-      ]
-    },
-    {
-      "id": "aj-214",
-      "query": "ABRの整備による効果を教えてください。",
-      "note": "public · image",
-      "relevant": [
-        {
-          "ref": "allganize/public/20231102_sesaku3.pdf",
-          "grade": 1,
-          "page": 17
         }
       ]
     },
@@ -533,18 +557,6 @@
       ]
     },
     {
-      "id": "aj-291",
-      "query": "販売エリアに掲示する酒類販売管理者情報の標識には、どのような項目を記載するべきですか？",
-      "note": "retail · image",
-      "relevant": [
-        {
-          "ref": "allganize/retail/r04_04_03.pdf",
-          "grade": 1,
-          "page": 5
-        }
-      ]
-    },
-    {
       "id": "aj-292",
       "query": "酒類小売業者が酒類販売管理者を選任するにあたり、候補者が別の販売場で既に酒類販売管理者に選任されている場合、次にどのような手続きを行うべきでしょうか？また、その手続きを行わなかった場合の罰則について説明してください。",
       "note": "retail · paragraph",
@@ -569,18 +581,6 @@
       ]
     },
     {
-      "id": "aj-294",
-      "query": "ウイスキーと日本酒の代表的な小売価格をもとに酒税額と酒税等負担率を示し、ウイスキーと日本酒の酒税額の金額差と、ウイスキーの酒税が日本酒の酒税に対して何倍になるか計算してください。",
-      "note": "retail · image",
-      "relevant": [
-        {
-          "ref": "allganize/retail/r04_04_03.pdf",
-          "grade": 1,
-          "page": 9
-        }
-      ]
-    },
-    {
       "id": "aj-295",
       "query": "酒類販売管理者の選任や解任に関する届出書類は、どこで入手できるか。",
       "note": "retail · paragraph",
@@ -593,14 +593,38 @@
       ]
     },
     {
-      "id": "aj-296",
-      "query": "同一建物内において酒類売場を設置している階が複数ある場合、どのような対応が必要ですか？",
-      "note": "retail · image",
+      "id": "aj-245",
+      "query": "商品の青果物を置いておく店舗保管場所について、どのようなことに気を付けながら清掃やメンテナンスを行う必要がありますか。",
+      "note": "retail · table",
       "relevant": [
         {
-          "ref": "allganize/retail/r04_04_03.pdf",
+          "ref": "allganize/retail/000604389.pdf",
           "grade": 1,
-          "page": 13
+          "page": 14
+        }
+      ]
+    },
+    {
+      "id": "aj-246",
+      "query": "販売した青果物商品に問題があった場合など、クレームや事故に備えて、普段からどのような対応を行うべきでしょうか。また、問題が発生した場合の対応方法について教えてください。",
+      "note": "retail · table",
+      "relevant": [
+        {
+          "ref": "allganize/retail/000604389.pdf",
+          "grade": 1,
+          "page": 23
+        }
+      ]
+    },
+    {
+      "id": "aj-247",
+      "query": "品質衛生に関する苦情・事故対応記録の再発防止策に関して、記入が必要な項目は何ですか？",
+      "note": "retail · table",
+      "relevant": [
+        {
+          "ref": "allganize/retail/000604389.pdf",
+          "grade": 1,
+          "page": 29
         }
       ]
     },

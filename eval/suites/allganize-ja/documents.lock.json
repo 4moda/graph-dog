@@ -4,7 +4,7 @@
     "revision": "c3a756711f108324d6f27f27093ad2c5eb53f7be",
     "licence": "MIT (questions); each document under its publisher's terms, see NOTICE.md"
   },
-  "rule": "eligible: site terms allow redistribution, at least 4 questions, downloadable, page count equals the dataset's, at most 10% of pages without text, no notice overriding the site's terms; selected: per domain, the shortest and the longest",
+  "rule": "eligible: site terms allow redistribution, at least 3 questions that are not answered by an image, downloadable, page count equals the dataset's, at most 10% of pages without text, no notice overriding the site's terms; selected: per domain, the shortest, the middle and the longest",
   "documents": [
     {
       "path": "finance/1c202401.pdf",
@@ -17,20 +17,33 @@
       "pages": 10,
       "bytes": 367418,
       "sha256": "d5e9b2ce278eba3b0b8e34bd80210a5c545bdc281b86e2e896372cc44871b7fb",
-      "questions": 5
+      "questions": 3
     },
     {
-      "path": "finance/01.pdf",
+      "path": "finance/230829_main.pdf",
       "domain": "finance",
-      "title": "2023年 保険モニタリングレポート【概要】",
+      "title": "2023事務年度 金融行政方針",
       "publisher": "金融庁",
-      "url": "https://www.fsa.go.jp/news/r4/hoken/20230630-2/01.pdf",
+      "url": "https://www.fsa.go.jp/news/r5/20230829/230829_main.pdf",
       "licence": "公共データ利用規約（第1.0版）",
       "terms": "https://www.fsa.go.jp/rules/",
-      "pages": 11,
-      "bytes": 2048409,
-      "sha256": "d6d290cdbb9347488a2b40f3cfa927a1b82d46755a198f6d7a57d24e5191a2ef",
-      "questions": 5
+      "pages": 30,
+      "bytes": 2683379,
+      "sha256": "01901e460605c15bf38abcb7b6ae0c445eecc188fc44be801834702394828953",
+      "questions": 3
+    },
+    {
+      "path": "finance/jimukyoku.pdf",
+      "domain": "finance",
+      "title": "事務局説明資料",
+      "publisher": "金融庁",
+      "url": "https://www.fsa.go.jp/singi/digital/siryou/20230421/jimukyoku.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.fsa.go.jp/rules/",
+      "pages": 32,
+      "bytes": 1663050,
+      "sha256": "242b77474d261c19e9b72fef9455518786e1c2f7e8f41801aa7d6eb101f2f7bb",
+      "questions": 3
     },
     {
       "path": "it/01point.pdf",
@@ -43,7 +56,7 @@
       "pages": 12,
       "bytes": 1383073,
       "sha256": "52c07e617a498ddc7a0673f92e565e56c25d71b0220fe6a60edce36097e1c785",
-      "questions": 6
+      "questions": 4
     },
     {
       "path": "it/20220422_resources_standard_guidelines_guidebook_01.pdf",
@@ -56,20 +69,46 @@
       "pages": 37,
       "bytes": 1008626,
       "sha256": "84f96116f5f6996f164c1a21bca5a36325e86b48639eb8808d834ce1019020c6",
-      "questions": 5
+      "questions": 4
     },
     {
-      "path": "manufacturing/000251332.pdf",
+      "path": "it/000843318.pdf",
+      "domain": "it",
+      "title": "クラウドサービス利用・提供における適切な設定のためのガイドライン",
+      "publisher": "総務省",
+      "url": "https://www.soumu.go.jp/main_content/000843318.pdf",
+      "licence": "総務省 開放データ利用規約（第1.0版）",
+      "terms": "https://www.soumu.go.jp/menu_kyotsuu/policy/tyosaku.html",
+      "pages": 84,
+      "bytes": 1722888,
+      "sha256": "a22d5f70fe5b2c4b65b5505caf1dd902a69f1b230259ccbfb7591ecbc436c914",
+      "questions": 3
+    },
+    {
+      "path": "manufacturing/keshouhin-standard.pdf",
       "domain": "manufacturing",
-      "title": "がん原性試験ガイドライン",
-      "publisher": "独立行政法人医薬品医療機器総合機構",
-      "url": "https://www.pmda.go.jp/files/000251332.pdf",
+      "title": "化粧品基準",
+      "publisher": "厚生労働省",
+      "url": "https://www.mhlw.go.jp/file/06-Seisakujouhou-11120000-Iyakushokuhinkyoku/keshouhin-standard.pdf",
       "licence": "公共データ利用規約（第1.0版）",
-      "terms": "https://www.pmda.go.jp/0048.html",
-      "pages": 35,
-      "bytes": 1086360,
-      "sha256": "9a701651ee82abcd16d3a0ea5e35385dcba134eac646cedc80e8ec6a33b5e151",
-      "questions": 4
+      "terms": "https://www.mhlw.go.jp/chosakuken/index.html",
+      "pages": 11,
+      "bytes": 96182,
+      "sha256": "07ca35b9f3546226af1f457201a65c401afe7fb35a701cc5edfc42d961c6616e",
+      "questions": 3
+    },
+    {
+      "path": "manufacturing/000040369.pdf",
+      "domain": "manufacturing",
+      "title": "自動車リユース部品利用マニュアル（文書版）",
+      "publisher": "環境省",
+      "url": "https://www.env.go.jp/content/000040369.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.env.go.jp/mail.html",
+      "pages": 48,
+      "bytes": 2423576,
+      "sha256": "d5159551bdf15c658e4c858d7defb479b671b91eb02e8d8e59ec7a9b67d0f1a8",
+      "questions": 5
     },
     {
       "path": "manufacturing/110329-1a.pdf",
@@ -82,7 +121,7 @@
       "pages": 65,
       "bytes": 1838878,
       "sha256": "e0a045ff47deb124190459e867647bcac9c8a09b18777b1e9a02175797b85870",
-      "questions": 4
+      "questions": 3
     },
     {
       "path": "public/000956094.pdf",
@@ -95,7 +134,20 @@
       "pages": 13,
       "bytes": 258965,
       "sha256": "eabf635dd6f2a7a4697764e2f2f05e80e71c6792a7558cc7bdc38ca7fb2dae78",
-      "questions": 6
+      "questions": 5
+    },
+    {
+      "path": "public/20231027_policies_local_governments_outline_02.pdf",
+      "domain": "public",
+      "title": "地方公共団体の基幹業務システムの統一・標準化 標準仕様書と適合確認に関する考え方",
+      "publisher": "デジタル庁",
+      "url": "https://www.digital.go.jp/assets/contents/node/basic_page/field_ref_resources/c58162cb-92e5-4a43-9ad5-095b7c45100c/d779571b/20231027_policies_local_governments_outline_02.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.digital.go.jp/copyright-policy",
+      "pages": 21,
+      "bytes": 556127,
+      "sha256": "a91f3a7768994728f28053a5aad2602f58a748a7c6723aed67bff7d53a806158",
+      "questions": 4
     },
     {
       "path": "public/20231102_sesaku3.pdf",
@@ -108,7 +160,7 @@
       "pages": 49,
       "bytes": 3927005,
       "sha256": "3ce3244d1997dfff287269f805c5da4613ef81f70facfcbb0cde2ed80c4755d3",
-      "questions": 9
+      "questions": 6
     },
     {
       "path": "retail/r04_04_03.pdf",
@@ -121,7 +173,20 @@
       "pages": 15,
       "bytes": 1294489,
       "sha256": "24b25d0d505a677967f57bde2a09eb86a4739717afc18b19138e9d4c82d6551b",
-      "questions": 6
+      "questions": 3
+    },
+    {
+      "path": "retail/000604389.pdf",
+      "domain": "retail",
+      "title": "小規模な青果物小売業 HACCPの考え方を取り入れた衛生管理のための手引書",
+      "publisher": "厚生労働省",
+      "url": "https://www.mhlw.go.jp/content/11130500/000604389.pdf",
+      "licence": "公共データ利用規約（第1.0版）",
+      "terms": "https://www.mhlw.go.jp/chosakuken/index.html",
+      "pages": 33,
+      "bytes": 3454037,
+      "sha256": "bd6dffa5764f550c7b1da4da0880dcbaf36d6cc9bc7aa2b22571748c7593b228",
+      "questions": 3
     },
     {
       "path": "retail/manual-kouri.pdf",

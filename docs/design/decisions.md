@@ -290,7 +290,7 @@ keeping secrets out of the tree.
 | Fusion | Reciprocal Rank Fusion |
 | Interfaces | CLI (canonical) · MCP · TypeScript API |
 | Cross-corpus merge | Rank-based (RRF), never score-based |
-| Quality gate | `npm run eval`; CI gates on the `allganize-ja` suite (10 government PDFs, 54 external questions, judged by page) |
+| Quality gate | `npm run eval`; CI gates on the `allganize-ja` suite (15 government PDFs, 56 external questions, judged by page) |
 | Artifact format | `.gdog` — gzip + ustar, per-file SHA-256 manifest, verified before install |
 | Distribution | Homebrew tap first (macOS, Linux, WSL), npm for Windows and CI; planned in [distribution.md](distribution.md) |
 | Code structure | Left to code-graph tools such as code-review-graph; an optional adapter at most |

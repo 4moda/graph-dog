@@ -23,7 +23,7 @@
  * eligible when:
  *
  *   1. its site's terms allow redistribution with attribution (REDISTRIBUTABLE_SITES)
- *   2. at least four questions target it
+ *   2. at least three of the questions it answers are not answered by an image
  *   3. it can be downloaded as a PDF
  *   4. its page count matches the dataset's, so it is the edition the questions
  *      were written against
@@ -32,7 +32,7 @@
  *      its authors' personal work (RESERVED_NOTICE) -- such a notice overrides
  *      the site's default terms
  *
- * Then, per domain, the shortest and the longest eligible document.
+ * Then, per domain, the shortest, the middle and the longest eligible document.
  *
  *   node scripts/eval/build-allganize-suite.mjs
  */
@@ -52,7 +52,25 @@ const DOCUMENTS = join(SUITE, "documents");
 const CACHE = join(REPO, "eval", ".cache", "allganize-ja");
 const CORPUS_SOURCE = "allganize";
 const DOMAINS = ["finance", "it", "manufacturing", "public", "retail"];
-const MIN_QUESTIONS = 4;
+const MIN_QUESTIONS = 3;
+/**
+ * Documents per domain: the shortest, the middle and the longest eligible one.
+ *
+ * Three rather than two because dropping the image-answered questions left too
+ * few: at 37 questions one rank slipping from first to second moves MRR by
+ * 0.014, above the gate's tolerance, so the gate would fire on noise.
+ */
+const PER_DOMAIN = 3;
+/**
+ * Question types the suite keeps.
+ *
+ * The dataset marks where each answer sits: in a paragraph, a table or an
+ * image. GraphDog extracts text and does not read images, and is not going to,
+ * so an `image` question measures a capability it does not claim. They are left
+ * out rather than counted as failures -- an evaluation should measure what the
+ * tool is for.
+ */
+const KEPT_TYPES = new Set(["paragraph", "table"]);
 const MAX_SPARSE_SHARE = 0.1;
 /** A page with fewer visible characters than this is treated as having no text layer. */
 const SPARSE_PAGE_CHARS = 20;
@@ -246,8 +264,9 @@ async function main() {
     type: row.type,
     question: row.question.trim(),
   }));
+  const kept = questions.filter((question) => KEPT_TYPES.has(question.type));
   const questionsFor = (document) =>
-    questions.filter((question) => question.domain === document.domain && question.file === document.file);
+    kept.filter((question) => question.domain === document.domain && question.file === document.file);
 
   const excluded = [];
   const eligible = [];
@@ -274,7 +293,13 @@ async function main() {
       .filter((document) => document.domain === domain)
       .sort((left, right) => left.pages - right.pages || (left.file < right.file ? -1 : 1));
     if (pool.length === 0) throw new Error(`no eligible document in ${domain}`);
-    selected.push(...(pool.length === 1 ? pool : [pool[0], pool[pool.length - 1]]));
+    const picks =
+      pool.length >= PER_DOMAIN && PER_DOMAIN === 3
+        ? [pool[0], pool[Math.floor(pool.length / 2)], pool[pool.length - 1]]
+        : pool.length === 1
+          ? pool
+          : [pool[0], pool[pool.length - 1]];
+    selected.push(...picks);
   }
 
   await rm(DOCUMENTS, { recursive: true, force: true });
@@ -286,8 +311,8 @@ async function main() {
   const lock = {
     source: { dataset: SOURCE, revision: REVISION, licence: "MIT (questions); each document under its publisher's terms, see NOTICE.md" },
     rule:
-      "eligible: site terms allow redistribution, at least 4 questions, downloadable, page count equals the dataset's, " +
-      "at most 10% of pages without text, no notice overriding the site's terms; selected: per domain, the shortest and the longest",
+      "eligible: site terms allow redistribution, at least 3 questions that are not answered by an image, downloadable, page count equals the dataset's, " +
+      "at most 10% of pages without text, no notice overriding the site's terms; selected: per domain, the shortest, the middle and the longest",
     documents: selected.map((document) => ({
       path: document.path,
       domain: document.domain,
@@ -310,7 +335,8 @@ async function main() {
     description:
       `Questions from ${SOURCE} (MIT, Allganize) at revision ${REVISION.slice(0, 12)}, about ` +
       `${selected.length} of its ${documents.length} documents. Each question is judged by the page that answers it. ` +
-      "Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph, a table or an image.",
+      "Questions whose answer sits in an image are left out: GraphDog extracts text and does not read images. " +
+      "Notes read '<domain> · <context type>'; the context type says whether the answer is in a paragraph or a table.",
     queries: selected.flatMap((document) =>
       questionsFor(document).map((question) => ({
         id: `aj-${String(question.index + 1).padStart(3, "0")}`,
@@ -325,7 +351,10 @@ async function main() {
   await writeFile(join(SUITE, "dataset.json"), `${JSON.stringify(dataset, null, 2)}\n`);
   await writeFile(join(SUITE, "NOTICE.md"), noticeFile(lock.documents));
 
-  console.log(`eligible ${eligible.length} of ${documents.length}; selected ${selected.length}, ${dataset.queries.length} questions`);
+  console.log(
+    `eligible ${eligible.length} of ${documents.length}; selected ${selected.length}, ${dataset.queries.length} questions ` +
+      `(${questions.length - kept.length} of ${questions.length} source questions dropped as image-answered)`,
+  );
   for (const document of lock.documents) {
     console.log(`  ${document.path.padEnd(64)} ${String(document.pages).padStart(3)} pages  ${document.questions} questions  ${document.publisher}`);
   }

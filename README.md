@@ -160,10 +160,11 @@ reports Recall@K, Precision@K, MRR, nDCG@K, evidence-line accuracy and latency
 percentiles, then exits **8** if a threshold or a baseline was breached.
 
 `npm run eval` runs GraphDog's own suites, and CI gates on one: `allganize-ja`,
-ten Japanese government PDFs committed with their SHA-256s, and 54 questions
+fifteen Japanese government PDFs committed with their SHA-256s, and 56 questions
 written by someone other than GraphDog's authors, each judged by the page that
-answers it. Results break down by domain and by whether the answer sits in a
-paragraph, a table or an image.
+answers it. Questions whose answer sits in an image are left out, since GraphDog
+reads text and does not claim otherwise. Results break down by domain and by
+whether the answer is in a paragraph or a table.
 
 ```console
 npm run eval                                   # every suite; the gate against its baseline
