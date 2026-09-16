@@ -119,10 +119,17 @@ What the original dataset could not carry:
   under-represented by construction.
 - **Blind spots.**
   - No Japanese query, though CJK search is a headline feature.
-  - No query whose answer is absent. What agents rely on most -- saying "not in
-    the corpus" (exit 7) instead of returning the least-bad row -- is not measured
-    at all, because the harness treats a query with no judgments as
-    unmeasurable.
+  - No query whose answer is absent. Not measuring it hid a defect for the
+    whole life of the project: **abstention could not work**. Every score in a
+    response is relative -- fusion normalizes its best hit to 1.0 -- so
+    `minScore` could never reject a result set, and exit 7 fired only when a
+    query shared no vocabulary with the corpus at all. A two-document corpus
+    about JWTs answered "published research on protein folding" at 1.0 because
+    one common word was shared, and the CI test asserting exit 7 passed for the
+    wrong reason: its query produced no candidates and never reached the
+    threshold. Fixed with `search.minTermCoverage`, an absolute measure; still
+    to build is the suite that scores abstention as a metric rather than by
+    hand on eight questions.
   - No query that needs the graph, so nothing shows the graph signal earns its
     place.
   - One corpus at a time, so the cross-corpus merge is unmeasured.

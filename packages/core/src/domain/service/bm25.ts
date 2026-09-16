@@ -88,6 +88,64 @@ export function scoreBm25(
 }
 
 /**
+ * How much of the query a chunk actually contains, from 0 to 1.
+ *
+ * BM25 answers "which chunk matches best", which is a *comparison*. Nothing in
+ * it answers "does anything match at all", and a ranking normalized so its best
+ * hit is 1.0 cannot be thresholded into an answer either: the top result of a
+ * hopeless search looks exactly like the top result of a good one. That is how
+ * a two-document corpus about JWTs came to answer "published research on
+ * protein folding" with a confident 1.0 -- one common word in common was
+ * enough, and nothing downstream could tell.
+ *
+ * So this is the absolute measure to go with the relative one: the share of the
+ * query's inverse-document-frequency mass that the chunk covers. Weighted by
+ * IDF rather than counting terms, because a chunk that shares "published" with
+ * the query has not covered the question, and one that shares "chromodynamics"
+ * very nearly has. A query term no chunk contains is counted in the denominator
+ * at the rarest weight there is: asking for something the corpus does not have
+ * should lower every chunk's coverage, which is exactly what makes an absent
+ * answer detectable.
+ *
+ * Corpus-independent and bounded, so one threshold means the same thing on ten
+ * documents and on ten thousand -- which a raw BM25 score does not.
+ */
+export function termCoverage(
+  postings: readonly Posting[],
+  queryTermFrequency: ReadonlyMap<string, number>,
+  corpus: CorpusStatistics,
+): Map<string, number> {
+  const coverage = new Map<string, number>();
+  if (queryTermFrequency.size === 0 || corpus.chunkCount <= 0) return coverage;
+
+  // `df = 0` never reaches `inverseDocumentFrequency`, which floors it at 1, so
+  // this is the weight of a term exactly one chunk in the corpus holds -- the
+  // rarest a present term can be, and what an absent one is charged.
+  const rarest = inverseDocumentFrequency(corpus.chunkCount, 1);
+
+  const weightOf = new Map<string, number>();
+  for (const posting of postings) {
+    if (!queryTermFrequency.has(posting.term) || weightOf.has(posting.term)) continue;
+    weightOf.set(posting.term, inverseDocumentFrequency(corpus.chunkCount, posting.df));
+  }
+
+  let total = 0;
+  for (const term of queryTermFrequency.keys()) total += weightOf.get(term) ?? rarest;
+  if (total <= 0) return coverage;
+
+  const seen = new Set<string>();
+  for (const posting of postings) {
+    const weight = weightOf.get(posting.term);
+    if (weight === undefined || posting.tf <= 0) continue;
+    const key = `${posting.chunkId}\u0001${posting.term}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    coverage.set(posting.chunkId, (coverage.get(posting.chunkId) ?? 0) + weight / total);
+  }
+  return coverage;
+}
+
+/**
  * Rank scored chunks, highest first.
  *
  * Ties break on chunk id so that repeating a query returns the same order.

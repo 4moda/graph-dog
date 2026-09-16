@@ -1,14 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  DEFAULT_BM25,
-  type CorpusStatistics,
-  type Posting,
-  inverseDocumentFrequency,
-  rankScores,
-  scoreBm25,
-} from "./bm25.ts";
+import { DEFAULT_BM25, inverseDocumentFrequency, rankScores, scoreBm25, termCoverage, type CorpusStatistics, type Posting } from "./bm25.ts";
 
 const corpus: CorpusStatistics = { chunkCount: 100, averageTokenCount: 50 };
 const query = new Map([["token", 1]]);
@@ -133,5 +126,77 @@ describe("domain/service/bm25", () => {
     it("returns everything for a negative topK", () => {
       assert.equal(rankScores(new Map([["a", 1]]), -1).length, 1);
     });
+  });
+});
+
+describe("domain/service/bm25: termCoverage", () => {
+  const corpus = { chunkCount: 100, averageTokenCount: 50 };
+  const posting = (term: string, chunkId: string, df: number, tf = 1) => ({
+    term,
+    chunkId,
+    tf,
+    df,
+    tokenCount: 50,
+  });
+
+  it("gives 1 to a chunk holding every term the query asked for", () => {
+    const coverage = termCoverage(
+      [posting("jwks", "a", 5), posting("rotation", "a", 5)],
+      new Map([["jwks", 1], ["rotation", 1]]),
+      corpus,
+    );
+    assert.ok(Math.abs((coverage.get("a") ?? 0) - 1) < 1e-9);
+  });
+
+  it("leaves out a chunk that holds none of them", () => {
+    const coverage = termCoverage([posting("jwks", "a", 5)], new Map([["jwks", 1]]), corpus);
+    assert.equal(coverage.get("b"), undefined);
+  });
+
+  it("counts a rare term for more than a common one", () => {
+    // Sharing "published" with a question is not covering it; sharing
+    // "chromodynamics" very nearly is.
+    const coverage = termCoverage(
+      [posting("common", "a", 90), posting("rare", "b", 1)],
+      new Map([["common", 1], ["rare", 1]]),
+      corpus,
+    );
+    assert.ok((coverage.get("b") ?? 0) > (coverage.get("a") ?? 0) * 3, JSON.stringify([...coverage]));
+  });
+
+  it("charges the query for a term no chunk in the corpus contains", () => {
+    // This is what makes an absent answer detectable: asking for something the
+    // corpus does not have has to lower every chunk's coverage.
+    const withAbsent = termCoverage(
+      [posting("jwks", "a", 5)],
+      new Map([["jwks", 1], ["sourdough", 1]]),
+      corpus,
+    );
+    const without = termCoverage([posting("jwks", "a", 5)], new Map([["jwks", 1]]), corpus);
+    assert.ok((withAbsent.get("a") ?? 0) < (without.get("a") ?? 0));
+    assert.equal(without.get("a"), 1);
+  });
+
+  it("does not pay a chunk twice for repeating a term", () => {
+    const once = termCoverage([posting("jwks", "a", 5, 1)], new Map([["jwks", 1]]), corpus);
+    const many = termCoverage([posting("jwks", "a", 5, 40)], new Map([["jwks", 1]]), corpus);
+    assert.equal(many.get("a"), once.get("a"), "coverage is about breadth, tf is BM25's job");
+  });
+
+  it("stays between 0 and 1 whatever it is given", () => {
+    const coverage = termCoverage(
+      [posting("a", "x", 1), posting("b", "x", 1), posting("c", "x", 99)],
+      new Map([["a", 3], ["b", 1], ["c", 1], ["absent", 1]]),
+      corpus,
+    );
+    for (const value of coverage.values()) assert.ok(value >= 0 && value <= 1, String(value));
+  });
+
+  it("is empty for an empty query or an empty corpus", () => {
+    assert.equal(termCoverage([posting("a", "x", 1)], new Map(), corpus).size, 0);
+    assert.equal(
+      termCoverage([posting("a", "x", 1)], new Map([["a", 1]]), { chunkCount: 0, averageTokenCount: 0 }).size,
+      0,
+    );
   });
 });

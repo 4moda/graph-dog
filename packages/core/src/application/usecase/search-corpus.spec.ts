@@ -134,6 +134,75 @@ describe("application/usecase/searchCorpus", () => {
     });
   });
 
+  describe("saying nothing is here", () => {
+    it("abstains when the best match covers too little of the query", async () => {
+      // The failure this exists for: every score in a response is relative, and
+      // fusion normalizes its best hit to 1.0, so before coverage a corpus
+      // about tokens answered a question about protein folding at a confident
+      // 1.0 because one common word was shared.
+      const store = new InMemoryStore();
+      store.addDocument({ ref: "docs/keys.md", text: "Public keys are published at the JWKS endpoint." });
+      store.addDocument({ ref: "docs/token.md", text: "Access tokens are published as signed JWT values." });
+
+      const result = await searchCorpus({ query: "published research on protein folding" }, deps(store));
+      assert.equal(result.hits.length, 0);
+      assert.ok(result.noEvidence);
+
+      const warning = result.warnings.find((w) => w.code === WarningCode.NO_SUFFICIENT_EVIDENCE);
+      assert.match(warning?.message ?? "", /covers enough of the query/);
+      assert.ok((warning?.details?.["term_coverage"] as number) < 0.25);
+    });
+
+    it("answers a question the corpus does cover", async () => {
+      const result = await searchCorpus({ query: "JWKS endpoints public keys" }, deps(populatedStore()));
+      assert.ok(result.hits.length > 0);
+      assert.equal(result.noEvidence, false);
+    });
+
+    it("reports the coverage it measured, answered or not", async () => {
+      const result = await searchCorpus({ query: "JWKS" }, deps(populatedStore()));
+      assert.equal(typeof result.stats["top_term_coverage"], "number");
+      assert.equal(result.strategy["min_term_coverage"], 0.25);
+    });
+
+    it("never abstains when the floor is zero", async () => {
+      const store = new InMemoryStore();
+      store.addDocument({ ref: "docs/keys.md", text: "Public keys are published at the JWKS endpoint." });
+      const result = await searchCorpus(
+        { query: "published research on protein folding", minTermCoverage: 0 },
+        deps(store),
+      );
+      assert.ok(result.hits.length > 0, "a caller that asks for the least-bad rows may have them");
+    });
+
+    it("does not refuse a paraphrase that dense retrieval found on its own", async () => {
+      // Sharing no words with the query is what a semantic match *is*. Coverage
+      // speaks for BM25 only; the dense floor is dense retrieval's own check.
+      const store = new InMemoryStore();
+      store.addDocument({
+        ref: "docs/near.md",
+        text: "wording that shares nothing with the question",
+        vectorsByChunk: { "docs/near.md#0": [1, 0, 0] },
+      });
+      const embedding = new StubEmbeddingModel({ "protein folding research": [1, 0, 0] });
+      const result = await searchCorpus({ query: "protein folding research" }, deps(store, { embedding }));
+      assert.equal(result.hits.length, 1);
+      assert.equal(result.noEvidence, false);
+    });
+
+    it("still abstains on a corpus whose embedder found nothing either", async () => {
+      const store = new InMemoryStore();
+      store.addDocument({
+        ref: "docs/keys.md",
+        text: "Public keys are published at the JWKS endpoint.",
+        vectorsByChunk: { "docs/keys.md#0": [0, 1, 0] },
+      });
+      const embedding = new StubEmbeddingModel({ "published research on protein folding": [1, 0, 0] });
+      const result = await searchCorpus({ query: "published research on protein folding" }, deps(store, { embedding }));
+      assert.ok(result.noEvidence);
+    });
+  });
+
   describe("dense retrieval", () => {
     it("fuses dense and lexical signals, ranking a both-signal match first", async () => {
       const store = new InMemoryStore();

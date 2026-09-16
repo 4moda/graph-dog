@@ -173,6 +173,11 @@ export function parseCorpusConfig(input: unknown, path = "<config>"): CorpusConf
       graphHops: asNumber(searchRaw["graphHops"], DEFAULT_SEARCH.graphHops, `${path}.search.graphHops`),
       exploreHops: asNumber(searchRaw["exploreHops"], DEFAULT_SEARCH.exploreHops, `${path}.search.exploreHops`),
       minScore: asNumber(searchRaw["minScore"], DEFAULT_SEARCH.minScore, `${path}.search.minScore`),
+      minTermCoverage: asNumber(
+        searchRaw["minTermCoverage"],
+        DEFAULT_SEARCH.minTermCoverage,
+        `${path}.search.minTermCoverage`,
+      ),
       minDenseSimilarity:
         searchRaw["minDenseSimilarity"] === undefined || searchRaw["minDenseSimilarity"] === null
           ? null

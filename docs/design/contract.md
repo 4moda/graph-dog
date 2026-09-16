@@ -106,7 +106,12 @@ get those exact lines. Everything else is context for deciding whether to.
 
 So `"bm25": 0` means "no keyword matched", while `"bm25": null` means "lexical
 search was disabled". Values are min-max normalized within the result set;
-`final` is the fused score, scaled so the best hit is `1.0`. (The example above
+`final` is the fused score, scaled so the best hit is `1.0`. **Every score in a
+response is relative**, so none of them answers "is any of this any good": the
+top result of a hopeless search looks exactly like the top result of a good one.
+That question is answered by `stats.top_term_coverage`, which is absolute --
+the share of the query's inverse-document-frequency mass the best hit actually
+contains -- and by exit code 7 when it falls below `strategy.min_term_coverage`. (The example above
 is a corpus built with a semantic model. With the built-in lexical embedder
 `strategy.dense` reads `off:lexical-embedder` and every `scores.dense` is
 `null`: see below.)

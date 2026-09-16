@@ -17,7 +17,7 @@
 import { createScores } from "../../domain/model/scores.ts";
 import { documentNodeId, type GraphEdge } from "../../domain/model/graph.ts";
 import type { Freshness } from "../../domain/model/freshness.ts";
-import { rankScores, scoreBm25 } from "../../domain/service/bm25.ts";
+import { rankScores, scoreBm25, termCoverage } from "../../domain/service/bm25.ts";
 import { fuse, rankFused } from "../../domain/service/fusion.ts";
 import { expandGraph } from "../../domain/service/graph-expansion.ts";
 import { bestSnippet } from "../../domain/service/snippet.ts";
@@ -40,6 +40,8 @@ export interface SearchOptions {
   readonly rerank?: boolean;
   /** Restrict results to refs under these prefixes, e.g. a single source id. */
   readonly filterPrefixes?: readonly string[];
+  /** Override how much of the query the best result must contain; 0 never abstains. */
+  readonly minTermCoverage?: number;
 }
 
 export interface SearchDependencies {
@@ -110,9 +112,15 @@ export async function searchCorpus(
   }
 
   let lexical: Array<[string, number]> | null = null;
+  // How much of the query each chunk actually contains, which unlike every
+  // score below survives normalization and means the same thing on any corpus.
+  let coverage = new Map<string, number>();
   if (search.enableLexical && queryTerms.length > 0) {
     const postings = store.lexical.postingsFor([...new Set(queryTerms)]);
-    const scores = scoreBm25(postings, termFrequencies(options.query), store.lexical.statistics());
+    const queryFrequencies = termFrequencies(options.query);
+    const statistics = store.lexical.statistics();
+    const scores = scoreBm25(postings, queryFrequencies, statistics);
+    coverage = termCoverage(postings, queryFrequencies, statistics);
     lexical = rankScores(scores, candidateCount);
   }
 
@@ -202,7 +210,29 @@ export async function searchCorpus(
 
   // --- evidence assembly ----------------------------------------------------
 
-  const accepted = ranked.filter(([, score]) => score.final >= minScore).slice(0, topK);
+  let accepted = ranked.filter(([, score]) => score.final >= minScore).slice(0, topK);
+  const topCoverage = accepted.length === 0 ? 0 : Math.max(...accepted.map(([id]) => coverage.get(id) ?? 0));
+
+  // The one check that can say "nothing here answers this". Every score above
+  // is relative -- fusion normalizes its best hit to 1.0 -- so the top result
+  // of a hopeless search is indistinguishable from the top result of a good
+  // one. Coverage is absolute, and this is where it earns its keep.
+  //
+  // It speaks only for BM25, though. Each signal gets the floor that suits it:
+  // coverage for lexical, `minDenseSimilarity` for dense, applied at candidate
+  // generation. A paraphrase a semantic model found has every right to share no
+  // words with the query -- that is what it is for -- so a result that dense
+  // retrieval put here is never refused for covering too little of it.
+  const minCoverage = options.minTermCoverage ?? search.minTermCoverage;
+  const denseFound = new Set((dense ?? []).map(([chunkId]) => chunkId));
+  const restsOnLexical = accepted.every(([chunkId]) => !denseFound.has(chunkId));
+  const abstained =
+    lexical !== null &&
+    minCoverage > 0 &&
+    accepted.length > 0 &&
+    restsOnLexical &&
+    topCoverage < minCoverage;
+  if (abstained) accepted = [];
   const chunkRows = store.chunks.getMany(accepted.map(([chunkId]) => chunkId));
 
   const hits: HitView[] = [];
@@ -236,11 +266,19 @@ export async function searchCorpus(
   if (noEvidence) {
     warnings.push({
       code: WarningCode.NO_SUFFICIENT_EVIDENCE,
-      message:
-        ranked.length === 0
+      message: abstained
+        ? `nothing in this corpus covers enough of the query: the best match contains ` +
+          `${(topCoverage * 100).toFixed(0)}% of what was asked for, against a floor of ` +
+          `${(minCoverage * 100).toFixed(0)}%`
+        : ranked.length === 0
           ? "no document matched this query"
           : `no result reached the relevance threshold of ${minScore}`,
-      details: { candidates_considered: ranked.length, min_score: minScore },
+      details: {
+        candidates_considered: ranked.length,
+        min_score: minScore,
+        term_coverage: Math.round(topCoverage * 1000) / 1000,
+        min_term_coverage: minCoverage,
+      },
     });
   }
 
@@ -296,6 +334,7 @@ export async function searchCorpus(
       graph: graphScores === null ? "off" : `expansion:${hops}hop`,
       rerank: reranked ? config.rerank.model : "off",
       min_score: minScore,
+      min_term_coverage: minCoverage,
       min_dense_similarity: denseFloor,
       top_k: topK,
     },
@@ -304,6 +343,7 @@ export async function searchCorpus(
       lexical_candidates: lexical?.length ?? 0,
       graph_candidates: graphScores?.size ?? 0,
       fused_candidates: ranked.length,
+      top_term_coverage: Math.round(topCoverage * 1000) / 1000,
       returned: hits.length,
       corpus_chunks: store.chunks.count(),
       corpus_documents: store.documents.count(),

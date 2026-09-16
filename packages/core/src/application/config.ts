@@ -53,6 +53,28 @@ export interface SearchConfig {
    * set a number only to tune one corpus.
    */
   readonly minDenseSimilarity: number | null;
+  /**
+   * How much of the query the best result must actually contain, 0 to 1.
+   *
+   * The one threshold that can say "nothing here answers this". Every score in
+   * a response is relative -- fusion normalizes its best hit to 1.0 -- so no
+   * cutoff on those can tell a hopeless search from a good one, and before this
+   * existed a corpus about JWTs answered "published research on protein
+   * folding" at a confident 1.0 because one common word was shared.
+   *
+   * Measured rather than chosen: on the 56-question Japanese gate the real
+   * questions cover 0.285 to 0.790 of their query's IDF mass, and eight
+   * questions about ramen, cats and quantum chromodynamics cover 0.118 to
+   * 0.288. 0.25 clears every real question with margin and turns away three of
+   * every four that have no answer here.
+   *
+   * It is a floor against nothing-matched, not a relevance judge. A question
+   * whose words happen to be common in the corpus clears it -- "who won the
+   * World Cup" scores 0.288 against Japanese government PDFs, because 国 is
+   * everywhere -- and lowering it further would start refusing real questions.
+   * Set it to 0 to never abstain.
+   */
+  readonly minTermCoverage: number;
   readonly snippetChars: number;
   readonly enableGraph: boolean;
   readonly enableDense: boolean;
@@ -98,6 +120,7 @@ export const DEFAULT_SEARCH: SearchConfig = {
   graphHops: 2,
   exploreHops: 3,
   minScore: 0.12,
+  minTermCoverage: 0.25,
   minDenseSimilarity: null,
   snippetChars: 320,
   enableGraph: true,
