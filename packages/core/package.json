@@ -4,18 +4,38 @@
   "description": "GraphDog core: domain model, use cases and adapters for a portable dense + BM25 + graph knowledge index.",
   "license": "MIT",
   "author": "4moda",
-  "repository": { "type": "git", "url": "git+https://github.com/4moda/graph-dog.git", "directory": "packages/core" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4moda/graph-dog.git",
+    "directory": "packages/core"
+  },
   "type": "module",
-  "engines": { "node": ">=22.18.0" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./contracts": { "types": "./dist/application/dto/contracts.d.ts", "default": "./dist/application/dto/contracts.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/application/dto/contracts.d.ts",
+      "default": "./dist/application/dto/contracts.js"
+    }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.*",
+    "!dist/**/__fixtures__/**",
+    "!dist/**/*.tsbuildinfo",
+    "!dist/.tsbuildinfo"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build --prefix ../..",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "peerDependencies": {
@@ -23,8 +43,12 @@
     "pdfjs-dist": "^6.3.0"
   },
   "peerDependenciesMeta": {
-    "@huggingface/transformers": { "optional": true },
-    "pdfjs-dist": { "optional": true }
+    "@huggingface/transformers": {
+      "optional": true
+    },
+    "pdfjs-dist": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "pdfjs-dist": "6.3.289"

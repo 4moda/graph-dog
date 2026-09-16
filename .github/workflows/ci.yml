@@ -61,6 +61,12 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # What `npm publish` would send, checked before it can be sent: a
+      # packaging fault is invisible until it is on the registry, where it
+      # cannot be taken back, only superseded.
+      - name: Check what would be published
+        run: npm run check:package
+
       - name: Build and query a corpus end to end
         run: |
           set -euo pipefail

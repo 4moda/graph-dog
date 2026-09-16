@@ -36,10 +36,15 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "!dist/**/*.spec.*",
+    "!dist/**/__fixtures__/**",
+    "!dist/**/*.tsbuildinfo",
+    "!dist/.tsbuildinfo"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node ../../scripts/make-executable.mjs dist/main.js",
+    "prepack": "npm run build --prefix ../..",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {

@@ -38,15 +38,21 @@ before the first `npm publish` installs nothing.
 
 ## Releasing
 
-1. Publish to npm: `npm publish --workspace packages/core --workspace packages/mcp --workspace packages/cli`.
-2. Regenerate the formula, which fetches the published tarball and hashes it:
+1. Check what would go to the registry, which `npm publish` cannot take back:
+
+   ```console
+   npm run check:package
+   ```
+
+2. Publish to npm: `npm publish --workspace packages/core --workspace packages/mcp --workspace packages/cli`.
+3. Regenerate the formula, which fetches the published tarball and hashes it:
 
    ```console
    node scripts/make-homebrew-formula.mjs 0.2.0 > packaging/homebrew/graphdog.rb
    ```
 
-3. Copy it into the tap as `Formula/graphdog.rb` and push.
-4. Verify against a clean prefix:
+4. Copy it into the tap as `Formula/graphdog.rb` and push.
+5. Verify against a clean prefix:
 
    ```console
    brew install --build-from-source 4moda/graphdog/graphdog

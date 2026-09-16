@@ -2,20 +2,45 @@
   "name": "@graphdog/mcp",
   "version": "0.1.0",
   "description": "GraphDog MCP server: exposes a local GraphDog corpus to AI agents over the Model Context Protocol.",
-  "keywords": ["mcp", "model-context-protocol", "ai-agent", "search", "rag", "retrieval"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "search",
+    "rag",
+    "retrieval"
+  ],
   "license": "MIT",
   "author": "4moda",
   "homepage": "https://github.com/4moda/graph-dog#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/4moda/graph-dog.git", "directory": "packages/mcp" },
-  "bugs": { "url": "https://github.com/4moda/graph-dog/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4moda/graph-dog.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/4moda/graph-dog/issues"
+  },
   "type": "module",
-  "engines": { "node": ">=22.18.0" },
-  "bin": { "graphdog-mcp": "dist/main.js" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "bin": {
+    "graphdog-mcp": "dist/main.js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.*",
+    "!dist/**/__fixtures__/**",
+    "!dist/**/*.tsbuildinfo",
+    "!dist/.tsbuildinfo"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node ../../scripts/make-executable.mjs dist/main.js",
+    "prepack": "npm run build --prefix ../..",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
